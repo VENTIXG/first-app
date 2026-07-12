@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wave Force Calculator - Floating Cylinder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .panel h2 {
+            margin-bottom: 20px;
+            color: #667eea;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .control-group {
+            margin-bottom: 18px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #555;
+            font-size: 0.9em;
+        }
+
+        .slider-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 5px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(102, 126, 234, 0.4);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 5px rgba(102, 126, 234, 0.4);
+        }
+
+        .value-display {
+            min-width: 70px;
+            text-align: right;
+            font-weight: 600;
+            color: #667eea;
+            font-size: 0.95em;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 0.95em;
+            transition: border-color 0.3s;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .param-section {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .param-section h3 {
+            font-size: 1.1em;
+            color: #764ba2;
+            margin-bottom: 12px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 300px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .result-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .result-label {
+            font-size: 0.85em;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .result-value {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .result-unit {
+            font-size: 0.75em;
+            opacity: 0.8;
+            margin-top: 3px;
+        }
+
+        .visualization {
+            margin-top: 20px;
+        }
+
+        .cylinder-viz {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 250px;
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 50%, #90EE90 100%);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cylinder {
+            width: 80px;
+            height: 150px;
+            background: radial-gradient(ellipse at 30% 30%, #FFD700, #FFA500);
+            border: 2px solid #FF8C00;
+            border-radius: 8px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .wave-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: #0066cc;
+            top: 50%;
+            left: 0;
+            opacity: 0.6;
+        }
+
+        .force-arrow {
+            position: absolute;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .wave-text {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 0.8em;
+            color: #0066cc;
+            font-weight: bold;
+        }
+
+        .info-box {
+            background: #f0f8ff;
+            border-left: 4px solid #667eea;
+            padding: 12px;
+            margin-top: 15px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            padding: 10px 15px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            color: #999;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .equation {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            margin: 8px 0;
+            overflow-x: auto;
+        }
+
+        h1 {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <h1>🌊 Wave Force Calculator</h1>
+
+    <div class="container">
+        <div class="panel">
+            <h2>⚙️ Parameters</h2>
+
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('wave')">Wave</button>
+                <button class="tab" onclick="switchTab('cylinder')">Cylinder</button>
+                <button class="tab" onclick="switchTab('coeff')">Coefficients</button>
+                <button class="tab" onclick="switchTab('air')">Air</button>
+            </div>
+
+            <div id="wave" class="tab-content active">
+                <div class="control-group">
+                    <label>Wave Height (m)</label>
+                    <div class="slider-container">
+                        <input type="range" id="waveHeight" min="0.1" max="10" step="0.1" value="2">
+                        <span class="value-display" id="waveHeightVal">2.0</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Wave Period (s)</label>
+                    <div class="slider-container">
+                        <input type="range" id="wavePeriod" min="2" max="20" step="0.5" value="8">
+                        <span class="value-display" id="wavePeriodVal">8.0</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Water Depth (m)</label>
+                    <div class="slider-container">
+                        <input type="range" id="waterDepth" min="5" max="100" step="5" value="20">
+                        <span class="value-display" id="waterDepthVal">20</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Water Density (kg/m³)</label>
+                    <input type="number" id="waterDensity" value="1025" min="1000" max="1030">
+                </div>
+
+                <div class="control-group">
+                    <label>Current Velocity (m/s)</label>
+                    <div class="slider-container">
+                        <input type="range" id="currentVelocity" min="0" max="2" step="0.1" value="0.5">
+                        <span class="value-display" id="currentVelocityVal">0.5</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="cylinder" class="tab-content">
+                <div class="control-group">
+                    <label>Cylinder Diameter (m)</label>
+                    <div class="slider-container">
+                        <input type="range" id="cylinderDiameter" min="0.5" max="5" step="0.1" value="2">
+                        <span class="value-display" id="cylinderDiameterVal">2.0</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Submerged Draft (m)</label>
+                    <div class="slider-container">
+                        <input type="range" id="cylinderDraft" min="0.5" max="10" step="0.1" value="3">
+                        <span class="value-display" id="cylinderDraftVal">3.0</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Cylinder Length (m)</label>
+                    <div class="slider-container">
+                        <input type="range" id="cylinderLength" min="1" max="50" step="1" value="10">
+                        <span class="value-display" id="cylinderLengthVal">10</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Cylinder Mass (kg)</label>
+                    <input type="number" id="cylinderMass" value="50000" min="1000" max="500000">
+                </div>
+
+                <div class="control-group">
+                    <label>Roughness (mm)</label>
+                    <div class="slider-container">
+                        <input type="range" id="roughness" min="0.01" max="1" step="0.01" value="0.1">
+                        <span class="value-display" id="roughnessVal">0.10</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="coeff" class="tab-content">
+                <div class="control-group">
+                    <label>Drag Coefficient (Cd)</label>
+                    <div class="slider-container">
+                        <input type="range" id="Cd" min="0.4" max="2.0" step="0.1" value="1.0">
+                        <span class="value-display" id="CdVal">1.0</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Inertia Coefficient (Cm)</label>
+                    <div class="slider-container">
+                        <input type="range" id="Cm" min="1.5" max="3.0" step="0.1" value="2.0">
+                        <span class="value-display" id="CmVal">2.0</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>MacCamy-Fuchs Correction</label>
+                    <div class="control-group" style="margin-top: 8px; margin-bottom: 0;">
+                        <input type="checkbox" id="useMacCamy" checked>
+                        <label for="useMacCamy" style="display: inline; margin-left: 5px;">Apply diffraction correction</label>
+                    </div>
+                </div>
+
+                <div class="param-section">
+                    <h3>📊 Calculated Parameters</h3>
+                    <div class="equation">
+                        Wave Number k: <span id="waveNumber">0.00</span> rad/m
+                    </div>
+                    <div class="equation">
+                        Wave Length λ: <span id="wavelength">0.00</span> m
+                    </div>
+                    <div class="equation">
+                        Keulegan-Carpenter: <span id="KC">0.00</span>
+                    </div>
+                    <div class="equation">
+                        ka Parameter: <span id="kaParam">0.00</span>
+                    </div>
+                    <div class="equation">
+                        Reynolds Number: <span id="Re">0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="air" class="tab-content">
+                <div class="control-group">
+                    <label>Wind Speed (m/s)</label>
+                    <div class="slider-container">
+                        <input type="range" id="windSpeed" min="0" max="30" step="1" value="5">
+                        <span class="value-display" id="windSpeedVal">5</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Air Drag Coefficient</label>
+                    <div class="slider-container">
+                        <input type="range" id="airDragCoeff" min="0.5" max="1.5" step="0.1" value="1.0">
+                        <span class="value-display" id="airDragCoeffVal">1.0</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Exposed Height (m)</label>
+                    <div class="slider-container">
+                        <input type="range" id="exposedHeight" min="0.5" max="5" step="0.1" value="1">
+                        <span class="value-display" id="exposedHeightVal">1.0</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Air Density (kg/m³)</label>
+                    <input type="number" id="airDensity" value="1.225" min="1.0" max="1.5">
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>📈 Results & Visualization</h2>
+
+            <div class="results-grid">
+                <div class="result-box">
+                    <div class="result-label">Peak Wave Force</div>
+                    <div class="result-value" id="peakWaveForce">0.0</div>
+                    <div class="result-unit">kN</div>
+                </div>
+                <div class="result-box">
+                    <div class="result-label">Peak Air Force</div>
+                    <div class="result-value" id="peakAirForce">0.0</div>
+                    <div class="result-unit">kN</div>
+                </div>
+                <div class="result-box">
+                    <div class="result-label">Total Peak Force</div>
+                    <div class="result-value" id="totalPeakForce">0.0</div>
+                    <div class="result-unit">kN</div>
+                </div>
+                <div class="result-box">
+                    <div class="result-label">RMS Force</div>
+                    <div class="result-value" id="rmsForce">0.0</div>
+                    <div class="result-unit">kN</div>
+                </div>
+            </div>
+
+            <div class="visualization">
+                <h3 style="color: #667eea; margin-bottom: 10px;">Force Time Series</h3>
+                <canvas id="forceChart"></canvas>
+            </div>
+
+            <div class="visualization">
+                <h3 style="color: #667eea; margin-bottom: 10px;">Cylinder Visualization</h3>
+                <div class="cylinder-viz">
+                    <div class="wave-text" id="waveInfo">H=2m, T=8s</div>
+                    <div class="cylinder" id="cylinderViz">
+                        <div class="wave-line"></div>
+                        <div class="force-arrow" id="waveArrow" style="top: 50%; left: 50%; transform: translateX(-50%) translateY(-50%);">→</div>
+                        <div class="force-arrow" id="airArrow" style="bottom: 0; left: 50%; transform: translateX(-50%); color: #888;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>ℹ️ Info:</strong> Forces calculated using Morrison's equation with MacCamy-Fuchs diffraction corrections for ka &lt; 5. Wave profile uses Airy (linear) wave theory.
+            </div>
+        </div>
+    </div>
+
+    <script src="physics.js"></script>
+    <script>
+        // Get all input elements
+        const inputs = {
+            waveHeight: document.getElementById('waveHeight'),
+            wavePeriod: document.getElementById('wavePeriod'),
+            waterDepth: document.getElementById('waterDepth'),
+            waterDensity: document.getElementById('waterDensity'),
+            currentVelocity: document.getElementById('currentVelocity'),
+            cylinderDiameter: document.getElementById('cylinderDiameter'),
+            cylinderDraft: document.getElementById('cylinderDraft'),
+            cylinderLength: document.getElementById('cylinderLength'),
+            cylinderMass: document.getElementById('cylinderMass'),
+            roughness: document.getElementById('roughness'),
+            Cd: document.getElementById('Cd'),
+            Cm: document.getElementById('Cm'),
+            useMacCamy: document.getElementById('useMacCamy'),
+            windSpeed: document.getElementById('windSpeed'),
+            airDragCoeff: document.getElementById('airDragCoeff'),
+            exposedHeight: document.getElementById('exposedHeight'),
+            airDensity: document.getElementById('airDensity')
+        };
+
+        // Setup event listeners
+        Object.entries(inputs).forEach(([key, element]) => {
+            element.addEventListener('input', () => {
+                updateDisplay();
+                calculate();
+            });
+        });
+
+        function updateDisplay() {
+            document.getElementById('waveHeightVal').textContent = inputs.waveHeight.value;
+            document.getElementById('wavePeriodVal').textContent = inputs.wavePeriod.value;
+            document.getElementById('waterDepthVal').textContent = inputs.waterDepth.value;
+            document.getElementById('currentVelocityVal').textContent = inputs.currentVelocity.value;
+            document.getElementById('cylinderDiameterVal').textContent = inputs.cylinderDiameter.value;
+            document.getElementById('cylinderDraftVal').textContent = inputs.cylinderDraft.value;
+            document.getElementById('cylinderLengthVal').textContent = inputs.cylinderLength.value;
+            document.getElementById('roughnessVal').textContent = parseFloat(inputs.roughness.value).toFixed(2);
+            document.getElementById('CdVal').textContent = inputs.Cd.value;
+            document.getElementById('CmVal').textContent = inputs.Cm.value;
+            document.getElementById('windSpeedVal').textContent = inputs.windSpeed.value;
+            document.getElementById('airDragCoeffVal').textContent = inputs.airDragCoeff.value;
+            document.getElementById('exposedHeightVal').textContent = inputs.exposedHeight.value;
+        }
+
+        function calculate() {
+            const params = {
+                H: parseFloat(inputs.waveHeight.value),
+                T: parseFloat(inputs.wavePeriod.value),
+                h: parseFloat(inputs.waterDepth.value),
+                rho: parseFloat(inputs.waterDensity.value),
+                U_c: parseFloat(inputs.currentVelocity.value),
+                D: parseFloat(inputs.cylinderDiameter.value),
+                d: parseFloat(inputs.cylinderDraft.value),
+                L: parseFloat(inputs.cylinderLength.value),
+                M: parseFloat(inputs.cylinderMass.value),
+                ks: parseFloat(inputs.roughness.value) / 1000,
+                Cd: parseFloat(inputs.Cd.value),
+                Cm: parseFloat(inputs.Cm.value),
+                useMacCamy: inputs.useMacCamy.checked,
+                V_wind: parseFloat(inputs.windSpeed.value),
+                Cd_air: parseFloat(inputs.airDragCoeff.value),
+                h_exp: parseFloat(inputs.exposedHeight.value),
+                rho_air: parseFloat(inputs.airDensity.value)
+            };
+
+            const results = calculateWaveForces(params);
+
+            // Update results
+            document.getElementById('peakWaveForce').textContent = (results.peakWaveForce / 1000).toFixed(1);
+            document.getElementById('peakAirForce').textContent = (results.peakAirForce / 1000).toFixed(1);
+            document.getElementById('totalPeakForce').textContent = (results.totalPeakForce / 1000).toFixed(1);
+            document.getElementById('rmsForce').textContent = (results.rmsForce / 1000).toFixed(1);
+
+            // Update parameters
+            document.getElementById('waveNumber').textContent = results.k.toFixed(4);
+            document.getElementById('wavelength').textContent = results.wavelength.toFixed(2);
+            document.getElementById('KC').textContent = results.KC.toFixed(2);
+            document.getElementById('kaParam').textContent = results.ka.toFixed(2);
+            document.getElementById('Re').textContent = results.Re.toFixed(0);
+
+            // Update wave info
+            document.getElementById('waveInfo').textContent = `H=${params.H}m, T=${params.T}s`;
+
+            // Draw charts
+            drawForceChart(results.timeData);
+            updateVisualization(results);
+        }
+
+        function drawForceChart(timeData) {
+            const canvas = document.getElementById('forceChart');
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+
+            const width = canvas.width;
+            const height = canvas.height;
+            const margin = 40;
+
+            const waveForces = timeData.map(d => d.waveForce);
+            const airForces = timeData.map(d => d.airForce);
+            const totalForces = timeData.map(d => d.waveForce + d.airForce);
+
+            const minForce = Math.min(...totalForces);
+            const maxForce = Math.max(...totalForces);
+            const range = maxForce - minForce || 1;
+
+            // Clear
+            ctx.fillStyle = '#fafafa';
+            ctx.fillRect(0, 0, width, height);
+
+            // Grid
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 5; i++) {
+                const y = margin + (i / 5) * (height - 2 * margin);
+                ctx.beginPath();
+                ctx.moveTo(margin, y);
+                ctx.lineTo(width - margin, y);
+                ctx.stroke();
+            }
+
+            // Axes
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(margin, margin);
+            ctx.lineTo(margin, height - margin);
+            ctx.lineTo(width - margin, height - margin);
+            ctx.stroke();
+
+            // Plot total force
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            for (let i = 0; i < totalForces.length; i++) {
+                const x = margin + (i / (totalForces.length - 1)) * (width - 2 * margin);
+                const y = height - margin - ((totalForces[i] - minForce) / range) * (height - 2 * margin);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Labels
+            ctx.fillStyle = '#666';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Time (s)', width / 2, height - 10);
+
+            ctx.save();
+            ctx.translate(15, height / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('Force (N)', 0, 0);
+            ctx.restore();
+
+            // Legend
+            ctx.fillStyle = '#667eea';
+            ctx.fillRect(width - 180, 20, 12, 12);
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'left';
+            ctx.fillText('Total Force', width - 160, 30);
+        }
+
+        function updateVisualization(results) {
+            const maxArrowSize = 60;
+            const waveArrow = document.getElementById('waveArrow');
+            const airArrow = document.getElementById('airArrow');
+
+            const waveForceSize = Math.min(maxArrowSize, (results.peakWaveForce / 100000) * maxArrowSize);
+            const airForceSize = Math.min(maxArrowSize, (results.peakAirForce / 100000) * maxArrowSize);
+
+            waveArrow.textContent = '→';
+            waveArrow.style.fontSize = (16 + waveForceSize / 5) + 'px';
+            waveArrow.style.color = `hsl(${200 - (waveForceSize / maxArrowSize) * 80}, 100%, 50%)`;
+
+            if (results.peakAirForce > 10) {
+                airArrow.textContent = '↓';
+                airArrow.style.fontSize = (16 + airForceSize / 5) + 'px';
+                airArrow.style.color = `hsl(0, ${100 - (airForceSize / maxArrowSize) * 50}%, 50%)`;
+            } else {
+                airArrow.textContent = '';
+            }
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Initial calculation
+        updateDisplay();
+        calculate();
+    </script>
+</body>
+</html>

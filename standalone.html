@@ -1,0 +1,1123 @@
+<title>Wave Force Calculator</title>
+<style>
+  :root {
+    --ground: #e9eef2;
+    --surface: #ffffff;
+    --surface-2: #f3f6f8;
+    --ink: #11242f;
+    --muted: #566a77;
+    --line: #d3dce2;
+    --line-strong: #b9c6ce;
+    --accent: #008e86;
+    --accent-soft: rgba(0, 142, 134, 0.12);
+    --hull: #e0a119;
+    --sea-top: #cfe0e6;
+    --sea-bottom: #a9c4cd;
+    --sky: #dceaef;
+    --good: #1f8f5f;
+    --warn: #c9861a;
+    --crit: #cf4a41;
+    --shadow: 0 1px 2px rgba(17, 36, 47, 0.06), 0 8px 24px rgba(17, 36, 47, 0.08);
+    --mono: ui-monospace, "SF Mono", "SFMono-Regular", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #070f18; --surface: #0d1a25; --surface-2: #0a141d;
+      --ink: #e2edf2; --muted: #8399a6; --line: #1c2d3a; --line-strong: #2a3f4e;
+      --accent: #2ac9bb; --accent-soft: rgba(42,201,187,0.14); --hull: #ffcf4a;
+      --sea-top: #12313c; --sea-bottom: #0a1f28; --sky: #0e2029;
+      --good: #37b579; --warn: #e0a72b; --crit: #e2564d;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #e9eef2; --surface: #ffffff; --surface-2: #f3f6f8;
+    --ink: #11242f; --muted: #566a77; --line: #d3dce2; --line-strong: #b9c6ce;
+    --accent: #008e86; --accent-soft: rgba(0,142,134,0.12); --hull: #e0a119;
+    --sea-top: #cfe0e6; --sea-bottom: #a9c4cd; --sky: #dceaef;
+    --good: #1f8f5f; --warn: #c9861a; --crit: #cf4a41;
+    --shadow: 0 1px 2px rgba(17,36,47,0.06), 0 8px 24px rgba(17,36,47,0.08);
+  }
+  :root[data-theme="dark"] {
+    --ground: #070f18; --surface: #0d1a25; --surface-2: #0a141d;
+    --ink: #e2edf2; --muted: #8399a6; --line: #1c2d3a; --line-strong: #2a3f4e;
+    --accent: #2ac9bb; --accent-soft: rgba(42,201,187,0.14); --hull: #ffcf4a;
+    --sea-top: #12313c; --sea-bottom: #0a1f28; --sky: #0e2029;
+    --good: #37b579; --warn: #e0a72b; --crit: #e2564d;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 30px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--sans); line-height: 1.5; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: clamp(16px, 3vw, 36px); }
+
+  header.masthead {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 20px; flex-wrap: wrap; padding-bottom: 18px;
+    border-bottom: 1px solid var(--line); margin-bottom: 24px;
+  }
+  .title-block h1 {
+    margin: 0; font-size: clamp(1.5rem, 3vw, 2.1rem);
+    font-weight: 650; letter-spacing: -0.02em; text-wrap: balance;
+  }
+  .title-block .eyebrow {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 6px;
+  }
+  .title-block p { margin: 4px 0 0; color: var(--muted); font-size: 0.92rem; max-width: 60ch; }
+
+  .theme-toggle {
+    font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.06em;
+    color: var(--muted); background: var(--surface); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 12px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .theme-toggle:hover { border-color: var(--line-strong); color: var(--ink); }
+  .theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
+  @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .panel + .panel { margin-top: 20px; }
+  .panel-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 8px; justify-content: space-between;
+  }
+  .panel-head .ph-left { display: flex; align-items: center; gap: 8px; }
+  .panel-head h2 {
+    margin: 0; font-size: 0.8rem; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+  }
+  .panel-head .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+  .tabs { display: flex; gap: 2px; padding: 10px 12px 0; background: var(--surface-2); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tab {
+    font-family: var(--sans); font-size: 0.82rem; font-weight: 550; color: var(--muted);
+    background: none; border: none; border-bottom: 2px solid transparent;
+    padding: 8px 11px 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
+
+  .tab-body { padding: 18px; display: none; }
+  .tab-body.active { display: block; }
+
+  .field { margin-bottom: 15px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+    font-size: 0.82rem; font-weight: 550; color: var(--ink); margin-bottom: 7px;
+  }
+  .field .unit { color: var(--muted); font-weight: 400; font-size: 0.76rem; }
+  .field .readout { font-family: var(--mono); font-size: 0.82rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 4px;
+    border-radius: 4px; background: var(--line-strong); outline: none; cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 16px; height: 16px;
+    border-radius: 50%; background: var(--accent); border: 2px solid var(--surface);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--surface);
+  }
+  input[type="range"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+
+  input[type="number"], select {
+    width: 100%; font-family: var(--mono); font-size: 0.85rem; color: var(--ink);
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px 10px; font-variant-numeric: tabular-nums;
+  }
+  input[type="number"]:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+
+  .check {
+    display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--ink);
+    cursor: pointer; padding: 10px 12px; background: var(--surface-2);
+    border: 1px solid var(--line); border-radius: 8px; margin-bottom: 12px;
+  }
+  .check input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+  .derived {
+    margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line-strong);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .derived .drow {
+    display: flex; justify-content: space-between; font-family: var(--mono);
+    font-size: 0.76rem; padding: 6px 8px; background: var(--surface-2);
+    border-radius: 6px; font-variant-numeric: tabular-nums;
+  }
+  .derived .drow span:first-child { color: var(--muted); }
+  .derived .drow span:last-child { color: var(--ink); }
+
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 14px 18px 0; }
+  .chip {
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.04em;
+    padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--surface-2); color: var(--muted);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .chip.ok::before { background: var(--good); }
+  .chip.warn { color: var(--warn); border-color: var(--warn); }
+  .chip.warn::before { background: var(--warn); }
+  .chip.crit { color: var(--crit); border-color: var(--crit); }
+  .chip.crit::before { background: var(--crit); }
+  .chip.info { color: var(--accent); border-color: var(--accent); }
+  .chip.info::before { background: var(--accent); }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 14px 18px 18px; }
+  @media (max-width: 560px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+  .tile {
+    position: relative; background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 10px; padding: 13px 13px 13px 15px; overflow: hidden;
+  }
+  .tile::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); }
+  .tile.sev-good::before { background: var(--good); }
+  .tile.sev-warn::before { background: var(--warn); }
+  .tile.sev-crit::before { background: var(--crit); }
+  .tile.neutral::before { background: var(--line-strong); }
+  .tile .tlabel { font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+  .tile .tval { font-family: var(--mono); font-size: 1.42rem; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1; }
+  .tile .tunit { font-size: 0.7rem; color: var(--muted); margin-left: 3px; }
+
+  .scope-wrap { padding: 0 18px 18px; }
+  .scope-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; }
+  .scope-head h3 { margin: 0; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .legend { display: flex; gap: 14px; font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+  .legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+
+  canvas { display: block; width: 100%; border-radius: 10px; }
+  .canvas-frame { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 6px; }
+
+  .play-btn {
+    font-family: var(--mono); font-size: 0.72rem; color: var(--accent);
+    background: var(--accent-soft); border: 1px solid var(--accent);
+    border-radius: 6px; padding: 4px 12px; cursor: pointer;
+  }
+  .play-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .note {
+    margin: 0 18px 18px; padding: 12px 14px; font-size: 0.8rem; color: var(--muted);
+    background: var(--accent-soft); border-radius: 8px; border-left: 3px solid var(--accent);
+  }
+  .note code { font-family: var(--mono); color: var(--ink); }
+
+  footer.foot {
+    margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 0.76rem; font-family: var(--mono);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="title-block">
+      <div class="eyebrow">Hydrodynamic Load Analysis</div>
+      <h1>Wave Force Calculator</h1>
+      <p>Depth-integrated Morison loading with exact MacCamy&ndash;Fuchs diffraction (Bessel-function solution), sheared current, DNV wind profile, wave spectra, and dynamic response &mdash; for a floating cylinder.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle color theme">
+      <span id="themeIcon">◐</span><span id="themeText">Theme</span>
+    </button>
+  </header>
+
+  <div class="grid">
+    <!-- ======================= CONTROLS ======================= -->
+    <div>
+    <section class="panel" aria-label="Parameters">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="wave" role="tab">Sea state</button>
+        <button class="tab" data-tab="cyl" role="tab">Cylinder</button>
+        <button class="tab" data-tab="coef" role="tab">Coefficients</button>
+        <button class="tab" data-tab="air" role="tab">Wind</button>
+        <button class="tab" data-tab="spec" role="tab">Spectrum</button>
+      </div>
+
+      <div class="tab-body active" id="tab-wave">
+        <div class="field">
+          <label>Wave height <span class="unit">H</span><span class="readout" id="r_H">2.0 m</span></label>
+          <input type="range" id="H" min="0.1" max="14" step="0.1" value="2">
+        </div>
+        <div class="field">
+          <label>Wave period <span class="unit">T</span><span class="readout" id="r_T">8.0 s</span></label>
+          <input type="range" id="T" min="3" max="20" step="0.5" value="8">
+        </div>
+        <div class="field">
+          <label>Water depth <span class="unit">h</span><span class="readout" id="r_h">20 m</span></label>
+          <input type="range" id="h" min="5" max="200" step="1" value="20">
+        </div>
+        <div class="field">
+          <label>Surface current <span class="unit">u<sub>s0</sub> &middot; 1/7-power profile</span><span class="readout" id="r_Uc">0.5 m/s</span></label>
+          <input type="range" id="Uc" min="0" max="3" step="0.1" value="0.5">
+        </div>
+        <div class="field">
+          <label>Water density <span class="unit">&rho; (kg/m&sup3;)</span></label>
+          <input type="number" id="rho" value="1025" min="990" max="1050">
+        </div>
+      </div>
+
+      <div class="tab-body" id="tab-cyl">
+        <div class="field">
+          <label>Diameter <span class="unit">D</span><span class="readout" id="r_D">2.0 m</span></label>
+          <input type="range" id="D" min="0.5" max="20" step="0.1" value="2">
+        </div>
+        <div class="field">
+          <label>Submerged draft <span class="unit">d</span><span class="readout" id="r_d">3.0 m</span></label>
+          <input type="range" id="d" min="0.5" max="30" step="0.1" value="3">
+        </div>
+        <div class="field">
+          <label>Freeboard height <span class="unit">exposed above SWL</span><span class="readout" id="r_hexp">1.0 m</span></label>
+          <input type="range" id="hexp" min="0.2" max="10" step="0.1" value="1">
+        </div>
+        <div class="field">
+          <label>Structural mass <span class="unit">M (t) &mdash; 0 = neutrally buoyant</span></label>
+          <input type="number" id="mass" value="0" min="0" max="50000" step="1">
+        </div>
+      </div>
+
+      <div class="tab-body" id="tab-coef">
+        <div class="field">
+          <label>Drag coefficient <span class="unit">C<sub>d</sub></span><span class="readout" id="r_Cd">1.0</span></label>
+          <input type="range" id="Cd" min="0.4" max="2.0" step="0.05" value="1.0">
+        </div>
+        <div class="field">
+          <label>Inertia coefficient <span class="unit">C<sub>m</sub></span><span class="readout" id="r_Cm">2.0</span></label>
+          <input type="range" id="Cm" min="1.2" max="3.0" step="0.05" value="2.0">
+        </div>
+        <label class="check" for="mcf">
+          <input type="checkbox" id="mcf" checked>
+          MacCamy&ndash;Fuchs diffraction (auto when D/&lambda; &gt; 1/5)
+        </label>
+        <div class="derived">
+          <div class="drow"><span>k</span><span id="d_k">&mdash;</span></div>
+          <div class="drow"><span>&lambda;</span><span id="d_lam">&mdash;</span></div>
+          <div class="drow"><span>KC</span><span id="d_KC">&mdash;</span></div>
+          <div class="drow"><span>ka</span><span id="d_ka">&mdash;</span></div>
+          <div class="drow"><span>Re</span><span id="d_Re">&mdash;</span></div>
+          <div class="drow"><span>D/&lambda;</span><span id="d_dlam">&mdash;</span></div>
+          <div class="drow"><span>C<sub>m</sub> MCF</span><span id="d_cmmcf">&mdash;</span></div>
+          <div class="drow"><span>&delta; phase</span><span id="d_delta">&mdash;</span></div>
+          <div class="drow"><span>H/&lambda;</span><span id="d_steep">&mdash;</span></div>
+          <div class="drow"><span>H/h</span><span id="d_hh">&mdash;</span></div>
+        </div>
+      </div>
+
+      <div class="tab-body" id="tab-air">
+        <div class="field">
+          <label>Reference wind <span class="unit">V<sub>1hr,10m</sub></span><span class="readout" id="r_Vw">10 m/s</span></label>
+          <input type="range" id="Vw" min="0" max="60" step="1" value="10">
+        </div>
+        <div class="field">
+          <label>Gust averaging period <span class="unit">DNV profile v<sub>tz</sub> = a&middot;V(z/10)<sup>&beta;</sup></span></label>
+          <select id="avgT">
+            <option value="1h">1 hour (a=1.000, β=0.150)</option>
+            <option value="10m" selected>10 min (a=1.060, β=0.130)</option>
+            <option value="1m">1 min (a=1.180, β=0.113)</option>
+            <option value="15s">15 s (a=1.260, β=0.106)</option>
+            <option value="5s">5 s (a=1.310, β=0.102)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Shape coefficient C<sub>&infin;</sub> <span class="unit">flow regime</span></label>
+          <select id="flowReg">
+            <option value="1.2">Subcritical (C∞ = 1.2)</option>
+            <option value="0.6" selected>Supercritical (C∞ = 0.6)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Air density <span class="unit">&rho;<sub>air</sub> (kg/m&sup3;)</span></label>
+          <input type="number" id="rhoa" value="1.225" min="0.9" max="1.5" step="0.005">
+        </div>
+        <div class="derived">
+          <div class="drow"><span>K (l/d)</span><span id="d_K">&mdash;</span></div>
+          <div class="drow"><span>V @ tip</span><span id="d_vtip">&mdash;</span></div>
+          <div class="drow"><span>Beaufort</span><span id="d_beau">&mdash;</span></div>
+          <div class="drow"><span>Martin P</span><span id="d_martin">&mdash;</span></div>
+        </div>
+      </div>
+
+      <div class="tab-body" id="tab-spec">
+        <div class="field">
+          <label>Spectrum model</label>
+          <select id="specModel">
+            <option value="jonswap" selected>JONSWAP (fetch-limited, North Sea)</option>
+            <option value="pm">Pierson–Moskowitz (fully developed)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Significant wave height <span class="unit">H<sub>s</sub></span><span class="readout" id="r_Hs">3.0 m</span></label>
+          <input type="range" id="Hs" min="0.5" max="15" step="0.25" value="3">
+        </div>
+        <div class="field">
+          <label>Peak period <span class="unit">T<sub>p</sub></span><span class="readout" id="r_Tp">10.0 s</span></label>
+          <input type="range" id="Tp" min="4" max="20" step="0.5" value="10">
+        </div>
+        <div class="derived">
+          <div class="drow"><span>&gamma;</span><span id="d_gamma">&mdash;</span></div>
+          <div class="drow"><span>&alpha;</span><span id="d_alpha">&mdash;</span></div>
+          <div class="drow"><span>m&#8320;</span><span id="d_m0">&mdash;</span></div>
+          <div class="drow"><span>H<sub>m0</sub> check</span><span id="d_hm0">&mdash;</span></div>
+        </div>
+        <div class="scope-head" style="margin-top:14px"><h3>Energy density S(&omega;)</h3></div>
+        <div class="canvas-frame"><canvas id="specChart" height="180"></canvas></div>
+      </div>
+    </section>
+    </div>
+
+    <!-- ======================= RESULTS ======================= -->
+    <div>
+    <section class="panel" aria-label="Results">
+      <div class="panel-head"><div class="ph-left"><span class="dot"></span><h2>Peak Loads</h2></div></div>
+
+      <div class="chips" id="chips"></div>
+
+      <div class="tiles">
+        <div class="tile" id="tile_wave">
+          <div class="tlabel">Wave force</div>
+          <div class="tval"><span id="v_wave">0.0</span><span class="tunit">kN</span></div>
+        </div>
+        <div class="tile" id="tile_air">
+          <div class="tlabel">Wind force</div>
+          <div class="tval"><span id="v_air">0.0</span><span class="tunit">kN</span></div>
+        </div>
+        <div class="tile" id="tile_total">
+          <div class="tlabel">Total peak</div>
+          <div class="tval"><span id="v_total">0.0</span><span class="tunit">kN</span></div>
+        </div>
+        <div class="tile" id="tile_rms">
+          <div class="tlabel">RMS force</div>
+          <div class="tval"><span id="v_rms">0.0</span><span class="tunit">kN</span></div>
+        </div>
+        <div class="tile neutral">
+          <div class="tlabel">Base moment</div>
+          <div class="tval"><span id="v_mom">0.0</span><span class="tunit">kN·m</span></div>
+        </div>
+        <div class="tile neutral">
+          <div class="tlabel">Heave T<sub>n3</sub></div>
+          <div class="tval"><span id="v_tn3">0.0</span><span class="tunit">s</span></div>
+        </div>
+        <div class="tile neutral">
+          <div class="tlabel">Drag share</div>
+          <div class="tval"><span id="v_dragshare">0</span><span class="tunit">%</span></div>
+        </div>
+        <div class="tile neutral">
+          <div class="tlabel">Displacement</div>
+          <div class="tval"><span id="v_disp">0.0</span><span class="tunit">t</span></div>
+        </div>
+      </div>
+
+      <div class="scope-wrap">
+        <div class="scope-head">
+          <h3>Force over one wave period</h3>
+          <div class="legend">
+            <span><i style="background:var(--accent)"></i>Total</span>
+            <span><i style="background:var(--hull)"></i>Inertia</span>
+            <span><i style="background:var(--crit)"></i>Drag</span>
+          </div>
+        </div>
+        <div class="canvas-frame"><canvas id="scope" height="230"></canvas></div>
+      </div>
+
+      <div class="note" id="regimeNote"></div>
+    </section>
+
+    <section class="panel" aria-label="Live simulation">
+      <div class="panel-head">
+        <div class="ph-left"><span class="dot"></span><h2>Live Simulation</h2></div>
+        <button class="play-btn" id="playBtn">❚❚ Pause</button>
+      </div>
+      <div class="scope-wrap" style="padding-top:14px">
+        <div class="canvas-frame"><canvas id="sim" height="320"></canvas></div>
+      </div>
+    </section>
+    </div>
+  </div>
+
+  <footer class="foot">
+    <span>Airy theory &middot; Morison (strip-integrated) &middot; MacCamy&ndash;Fuchs (Bessel) &middot; DNV wind &middot; PM / JONSWAP</span>
+    <span>Rigid cylinder &middot; linear kinematics &middot; frequency-independent C<sub>d</sub></span>
+  </footer>
+</div>
+
+<script>
+'use strict';
+// ============================================================
+//  Physics core
+// ============================================================
+const G = 9.81;
+const NU = 1.0e-6;               // kinematic viscosity, seawater
+
+// ---- Bessel functions (Abramowitz & Stegun rational approximations) ----
+function besselJ0(x) {
+  const ax = Math.abs(x);
+  if (ax < 8) {
+    const y = x * x;
+    const p1 = 57568490574.0 + y * (-13362590354.0 + y * (651619640.7 + y * (-11214424.18 + y * (77392.33017 + y * -184.9052456))));
+    const p2 = 57568490411.0 + y * (1029532985.0 + y * (9494680.718 + y * (59272.64853 + y * (267.8532712 + y))));
+    return p1 / p2;
+  }
+  const z = 8 / ax, y = z * z, xx = ax - 0.785398164;
+  const p1 = 1 + y * (-0.1098628627e-2 + y * (0.2734510407e-4 + y * (-0.2073370639e-5 + y * 0.2093887211e-6)));
+  const p2 = -0.1562499995e-1 + y * (0.1430488765e-3 + y * (-0.6911147651e-5 + y * (0.7621095161e-6 + y * -0.934935152e-7)));
+  return Math.sqrt(0.636619772 / ax) * (Math.cos(xx) * p1 - z * Math.sin(xx) * p2);
+}
+function besselJ1(x) {
+  const ax = Math.abs(x);
+  if (ax < 8) {
+    const y = x * x;
+    const p1 = x * (72362614232.0 + y * (-7895059235.0 + y * (242396853.1 + y * (-2972611.439 + y * (15704.48260 + y * -30.16036606)))));
+    const p2 = 144725228442.0 + y * (2300535178.0 + y * (18583304.74 + y * (99447.43394 + y * (376.9991397 + y))));
+    return p1 / p2;
+  }
+  const z = 8 / ax, y = z * z, xx = ax - 2.356194491;
+  const p1 = 1 + y * (0.183105e-2 + y * (-0.3516396496e-4 + y * (0.2457520174e-5 + y * -0.240337019e-6)));
+  const p2 = 0.04687499995 + y * (-0.2002690873e-3 + y * (0.8449199096e-5 + y * (-0.88228987e-6 + y * 0.105787412e-6)));
+  const ans = Math.sqrt(0.636619772 / ax) * (Math.cos(xx) * p1 - z * Math.sin(xx) * p2);
+  return x < 0 ? -ans : ans;
+}
+function bessY0(x) {
+  if (x < 8) {
+    const y = x * x;
+    const p1 = -2957821389.0 + y * (7062834065.0 + y * (-512359803.6 + y * (10879881.29 + y * (-86327.92757 + y * 228.4622733))));
+    const p2 = 40076544269.0 + y * (745249964.8 + y * (7189466.438 + y * (47447.26470 + y * (226.1030244 + y))));
+    return (p1 / p2) + 0.636619772 * besselJ0(x) * Math.log(x);
+  }
+  const z = 8 / x, y = z * z, xx = x - 0.785398164;
+  const p1 = 1 + y * (-0.1098628627e-2 + y * (0.2734510407e-4 + y * (-0.2073370639e-5 + y * 0.2093887211e-6)));
+  const p2 = -0.1562499995e-1 + y * (0.1430488765e-3 + y * (-0.6911147651e-5 + y * (0.7621095161e-6 + y * -0.934935152e-7)));
+  return Math.sqrt(0.636619772 / x) * (Math.sin(xx) * p1 + z * Math.cos(xx) * p2);
+}
+function bessY1(x) {
+  if (x < 8) {
+    const y = x * x;
+    const p1 = x * (-4.900604943e13 + y * (1.275274390e13 + y * (-5.153438139e11 + y * (7.349264551e9 + y * (-4.237922726e7 + y * 8.511937935e4)))));
+    const p2 = 2.499580570e14 + y * (4.244419664e12 + y * (3.733650367e10 + y * (2.245904002e8 + y * (1.020426050e6 + y * (3.549632885e3 + y)))));
+    return (p1 / p2) + 0.636619772 * (besselJ1(x) * Math.log(x) - 1 / x);
+  }
+  const z = 8 / x, y = z * z, xx = x - 2.356194491;
+  const p1 = 1 + y * (0.183105e-2 + y * (-0.3516396496e-4 + y * (0.2457520174e-5 + y * -0.240337019e-6)));
+  const p2 = 0.04687499995 + y * (-0.2002690873e-3 + y * (0.8449199096e-5 + y * (-0.88228987e-6 + y * 0.105787412e-6)));
+  return Math.sqrt(0.636619772 / x) * (Math.sin(xx) * p1 + z * Math.cos(xx) * p2);
+}
+
+// ---- MacCamy–Fuchs: A(ka) and phase from derivatives of J1, Y1 ----
+// J1'(x) = J0(x) - J1(x)/x ;  Y1'(x) = Y0(x) - Y1(x)/x
+function macCamyFuchs(ka) {
+  const J1p = besselJ0(ka) - besselJ1(ka) / ka;
+  const Y1p = bessY0(ka) - bessY1(ka) / ka;
+  const A = 1 / Math.sqrt(J1p * J1p + Y1p * Y1p);
+  const Cm = 4 * A / (Math.PI * ka * ka);
+  const delta = Math.atan2(J1p, Y1p);      // force lags/leads crest
+  return { Cm, delta, A };
+}
+
+// ---- dispersion ----
+function solveDispersion(omega, h) {
+  let k = omega * omega / G;
+  for (let i = 0; i < 60; i++) {
+    const th = Math.tanh(k * h);
+    const f = omega * omega - G * k * th;
+    const df = -G * (th + k * h * (1 - th * th));
+    const kn = k - f / df;
+    if (Math.abs(kn - k) < 1e-12) { k = kn; break; }
+    k = kn;
+  }
+  return k;
+}
+
+// ---- DNV wind profile coefficients [averaging time] ----
+const WIND_AB = { '1h': [1.000, 0.150], '10m': [1.060, 0.130], '1m': [1.180, 0.113], '15s': [1.260, 0.106], '5s': [1.310, 0.102] };
+
+// ---- finite-length reduction factor K (subcritical / supercritical rows) ----
+const K_LD  = [2, 5, 10, 20, 40, 50, 100, 1e9];
+const K_SUB = [0.58, 0.62, 0.68, 0.74, 0.82, 0.87, 0.98, 1.00];
+const K_SUP = [0.80, 0.80, 0.82, 0.90, 0.98, 0.99, 1.00, 1.00];
+function interpK(ld, row) {
+  if (ld <= K_LD[0]) return row[0];
+  for (let i = 1; i < K_LD.length; i++) {
+    if (ld <= K_LD[i]) {
+      const f = (ld - K_LD[i-1]) / (K_LD[i] - K_LD[i-1]);
+      return row[i-1] + f * (row[i] - row[i-1]);
+    }
+  }
+  return 1.0;
+}
+
+// ---- Beaufort from m/s ----
+function beaufort(v) {
+  const th = [0.5,1.5,3.3,5.5,7.9,10.7,13.8,17.1,20.7,24.4,28.4,32.6];
+  const names = ['Calm','Light air','Light','Gentle','Moderate','Fresh','Strong','Near gale','Gale','Strong gale','Whole gale','Violent storm'];
+  for (let i = 0; i < th.length; i++) if (v < th[i]) return 'F' + i + ' ' + names[i];
+  return 'F12 Hurricane';
+}
+
+// ============================================================
+//  Main computation — strip-integrated Morison + MCF + wind
+// ============================================================
+function compute(p) {
+  const omega = 2 * Math.PI / p.T;
+  const k = solveDispersion(omega, p.h);
+  const lam = 2 * Math.PI / k;
+  const a = p.H / 2;
+  const kh = k * p.h;
+  const sinhkh = Math.sinh(kh);
+  const area = Math.PI * p.D * p.D / 4;
+
+  const Um = a * omega * Math.cosh(k * (p.h - p.d / 2)) / sinhkh; // mid-draft
+  const KC = (a * omega / Math.tanh(kh)) * p.T / p.D;             // surface-based KC
+  const ka = k * p.D / 2;
+  const Re = Um * p.D / NU;
+  const Dlam = p.D / lam;
+
+  const diffraction = Dlam > 0.2;              // hydrodynamically large
+  const useMCF = p.mcf && (diffraction || ka > 0.4); // apply when meaningful
+  const mcf = macCamyFuchs(ka);
+
+  // draft coverage of the depth-integrated MCF force (full-depth formula scaled)
+  const draftFrac = (sinhkh - Math.sinh(k * Math.max(0, p.h - p.d))) / sinhkh;
+
+  // --- strip integration over the draft (handles sheared current) ---
+  const NS = 60;                                // strips
+  const dz = p.d / NS;
+  const NT = 240;                               // time steps over one period
+  const series = [];
+  let peakTot = 0, peakI = 0, peakD = 0, peakMomT = 0, sumSq = 0;
+
+  // wind force (steady) — DNV strip integration over freeboard
+  const [ca, cb] = WIND_AB[p.avgT];
+  const Kf = interpK(p.hexp / p.D, p.flowC >= 1.0 ? K_SUB : K_SUP);
+  const C_shape = Kf * p.flowC;
+  const NW = 20;
+  let Fwind = 0, Mwind = 0;
+  for (let i = 0; i < NW; i++) {
+    const z = (i + 0.5) * (p.hexp / NW);       // height above SWL
+    const vz = ca * p.Vw * Math.pow(Math.max(z, 1) / 10, cb);
+    const dF = 0.5 * p.rhoa * C_shape * vz * vz * p.D * (p.hexp / NW);
+    Fwind += dF;
+    Mwind += dF * (p.d + z);                    // moment about keel
+  }
+  const vtip = ca * p.Vw * Math.pow(Math.max(p.hexp, 1) / 10, cb);
+
+  for (let it = 0; it <= NT; it++) {
+    const t = (it / NT) * p.T;
+    const ph = omega * t;
+    let Fi = 0, Fd = 0, Mi = 0, Md = 0;
+
+    if (useMCF) {
+      // exact linear diffraction inertia force (depth-integrated, draft-scaled)
+      Fi = (Math.PI / 8) * p.rho * G * p.H * p.D * p.D * Math.tanh(kh) * mcf.Cm * Math.cos(ph - mcf.delta) * draftFrac;
+      Mi = Fi * (p.d * 0.55);                   // effective arm ≈ centroid of load
+      // viscous drag still evaluated by strips (usually minor here)
+      for (let is = 0; is < NS; is++) {
+        const z = -(is + 0.5) * dz;             // below SWL
+        const ch = Math.cosh(k * (z + p.h)) / sinhkh;
+        const uc = p.Uc * Math.pow((z + p.h) / p.h, 1 / 7);
+        const u = a * omega * ch * Math.cos(ph) + uc;
+        const fd = 0.5 * p.rho * p.Cd * p.D * Math.abs(u) * u * dz;
+        Fd += fd; Md += fd * (p.d + z);
+      }
+    } else {
+      for (let is = 0; is < NS; is++) {
+        const z = -(is + 0.5) * dz;
+        const ch = Math.cosh(k * (z + p.h)) / sinhkh;
+        const uc = p.Uc * Math.pow((z + p.h) / p.h, 1 / 7);
+        const u = a * omega * ch * Math.cos(ph) + uc;
+        const du = -a * omega * omega * ch * Math.sin(ph);
+        const fiS = p.rho * p.Cm * area * du * dz;
+        const fdS = 0.5 * p.rho * p.Cd * p.D * Math.abs(u) * u * dz;
+        Fi += fiS; Fd += fdS;
+        Mi += fiS * (p.d + z); Md += fdS * (p.d + z);
+      }
+    }
+
+    const Ft = Fi + Fd + Fwind;
+    const Mt = Mi + Md + Mwind;
+    series.push({ t, Fi, Fd, Ft });
+    if (Math.abs(Ft) > peakTot) { peakTot = Math.abs(Ft); peakMomT = Math.abs(Mt); }
+    if (Math.abs(Fi) > peakI) peakI = Math.abs(Fi);
+    if (Math.abs(Fd) > peakD) peakD = Math.abs(Fd);
+    sumSq += Ft * Ft;
+  }
+  const rms = Math.sqrt(sumSq / (NT + 1));
+
+  // --- natural heave period: Tn3 = 2π√((M+A33)/(ρ g Awl)) ---
+  const Awl = area;
+  const dispM = p.rho * area * p.d;             // displaced mass (floating equilibrium)
+  const M = p.mass > 0 ? p.mass * 1000 : dispM;
+  const A33 = p.rho * (Math.PI / 3) * Math.pow(p.D / 2, 3) * 2; // ≈ hemispherical added mass
+  const Tn3 = 2 * Math.PI * Math.sqrt((M + A33) / (p.rho * G * Awl));
+
+  // --- validity flags ---
+  const steep = p.H / lam;
+  const breaking = p.H / p.h;
+  const flags = {
+    breaking: breaking > 0.78,
+    steepLimit: steep > 0.14,
+    stokes: steep > 0.04 && !p.deepFlag,
+    diffraction,
+    dragDom: KC > 15,
+    inertiaDom: KC < 5,
+    resonance: Math.abs(Tn3 - p.T) / p.T < 0.15
+  };
+
+  return {
+    k, lam, KC, ka, Re, Dlam, mcf, useMCF, draftFrac,
+    series, peakTot, peakI, peakD, peakMom: peakMomT, rms,
+    Fwind, vtip, Kf, Tn3, dispM, flags, steep, breaking,
+    omega, a, kh
+  };
+}
+
+// ---- spectra ----
+function spectrumJONSWAP(Hs, Tp, w) {
+  const wp = 2 * Math.PI / Tp;
+  const delta = 0.036 - 0.0056 * Tp / Math.sqrt(Hs);
+  let gamma = Math.exp(3.484 * (1 - 0.1975 * delta * Math.pow(Tp, 4) / (Hs * Hs)));
+  gamma = Math.max(1, Math.min(7, gamma));
+  const alpha = 5.061 * (1 - 0.287 * Math.log(gamma)) * Hs * Hs / Math.pow(Tp, 4);
+  const sig = w <= wp ? 0.07 : 0.09;
+  const r = Math.exp(-Math.pow(w - wp, 2) / (2 * sig * sig * wp * wp));
+  return { S: alpha * G * G * Math.pow(w, -5) * Math.exp(-1.25 * Math.pow(wp / w, 4)) * Math.pow(gamma, r), gamma, alpha };
+}
+function spectrumPM(Hs, Tp, w) {
+  const wp = 2 * Math.PI / Tp;
+  return { S: (5 / 16) * Math.pow(wp, 4) / Math.pow(w, 5) * Hs * Hs * Math.exp(-1.25 * Math.pow(wp / w, 4)), gamma: 1, alpha: 0 };
+}
+
+// ============================================================
+//  UI wiring
+// ============================================================
+const el = id => document.getElementById(id);
+function readParams() {
+  return {
+    H: +el('H').value, T: +el('T').value, h: +el('h').value,
+    Uc: +el('Uc').value, rho: +el('rho').value,
+    D: +el('D').value, d: +el('d').value, hexp: +el('hexp').value,
+    mass: +el('mass').value,
+    Cd: +el('Cd').value, Cm: +el('Cm').value, mcf: el('mcf').checked,
+    Vw: +el('Vw').value, avgT: el('avgT').value, flowC: +el('flowReg').value,
+    rhoa: +el('rhoa').value,
+    Hs: +el('Hs').value, Tp: +el('Tp').value, specModel: el('specModel').value
+  };
+}
+function fmt(x, dgt = 1) { return x.toLocaleString('en-US', { minimumFractionDigits: dgt, maximumFractionDigits: dgt }); }
+function severity(kN) { return kN < 50 ? 'sev-good' : kN < 500 ? 'sev-warn' : 'sev-crit'; }
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function setupCanvas(c, cssH) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = c.clientWidth || 600;
+  c.width = w * dpr; c.height = cssH * dpr;
+  const ctx = c.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w, h: cssH };
+}
+
+// ---- force scope ----
+function drawScope(res) {
+  const { ctx, w, h } = setupCanvas(el('scope'), 230);
+  ctx.clearRect(0, 0, w, h);
+  const m = { l: 56, r: 14, t: 12, b: 26 };
+  const iw = w - m.l - m.r, ih = h - m.t - m.b;
+  const tot = res.series.map(s => s.Ft), fi = res.series.map(s => s.Fi), fd = res.series.map(s => s.Fd);
+  let lo = Math.min(...tot, ...fi, ...fd, 0), hi = Math.max(...tot, ...fi, ...fd, 0);
+  if (hi - lo < 1e-6) hi = lo + 1;
+  const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+  const rng = hi - lo;
+  const X = i => m.l + (i / (tot.length - 1)) * iw;
+  const Y = v => m.t + ih - ((v - lo) / rng) * ih;
+  const line = cssVar('--line'), strong = cssVar('--line-strong'), muted = cssVar('--muted');
+  const accent = cssVar('--accent'), hull = cssVar('--hull'), crit = cssVar('--crit');
+
+  ctx.strokeStyle = line; ctx.lineWidth = 1;
+  ctx.fillStyle = muted; ctx.font = '10px ui-monospace, monospace';
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let i = 0; i <= 5; i++) {
+    const v = lo + (i / 5) * rng, y = Y(v);
+    ctx.beginPath(); ctx.moveTo(m.l, y); ctx.lineTo(w - m.r, y); ctx.stroke();
+    ctx.fillText((v / 1000).toFixed(0), m.l - 8, y);
+  }
+  if (lo < 0 && hi > 0) { ctx.strokeStyle = strong; ctx.beginPath(); ctx.moveTo(m.l, Y(0)); ctx.lineTo(w - m.r, Y(0)); ctx.stroke(); }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillText('0', m.l, h - m.b + 6); ctx.fillText('T/2', m.l + iw / 2, h - m.b + 6); ctx.fillText('T', w - m.r, h - m.b + 6);
+  ctx.save(); ctx.translate(14, m.t + ih / 2); ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'middle'; ctx.fillText('Force (kN)', 0, 0); ctx.restore();
+
+  // area under total
+  ctx.beginPath(); ctx.moveTo(X(0), Y(tot[0]));
+  tot.forEach((v, i) => ctx.lineTo(X(i), Y(v)));
+  ctx.lineTo(X(tot.length - 1), Y(0)); ctx.lineTo(X(0), Y(0)); ctx.closePath();
+  const grad = ctx.createLinearGradient(0, m.t, 0, m.t + ih);
+  grad.addColorStop(0, accent + '3a'); grad.addColorStop(1, accent + '00');
+  ctx.fillStyle = grad; ctx.fill();
+
+  const plot = (arr, color, lw, dash) => {
+    ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.setLineDash(dash || []);
+    ctx.beginPath(); arr.forEach((v, i) => i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v))); ctx.stroke();
+    ctx.setLineDash([]);
+  };
+  plot(fi, hull, 1.4, [5, 3]);
+  plot(fd, crit, 1.4, [2, 3]);
+  plot(tot, accent, 2.2);
+  let pi = 0; tot.forEach((v, i) => { if (Math.abs(v) > Math.abs(tot[pi])) pi = i; });
+  ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(X(pi), Y(tot[pi]), 3.5, 0, 7); ctx.fill();
+}
+
+// ---- spectrum chart ----
+function drawSpectrum(p) {
+  const { ctx, w, h } = setupCanvas(el('specChart'), 180);
+  ctx.clearRect(0, 0, w, h);
+  const m = { l: 46, r: 12, t: 10, b: 24 };
+  const iw = w - m.l - m.r, ih = h - m.t - m.b;
+  const wMax = 2.5 * 2 * Math.PI / p.Tp;
+  const N = 160;
+  const pts = []; let Smax = 0, m0 = 0, gamma = 1, alpha = 0;
+  const dw = wMax / N;
+  for (let i = 1; i <= N; i++) {
+    const om = i * dw;
+    const r = p.specModel === 'jonswap' ? spectrumJONSWAP(p.Hs, p.Tp, om) : spectrumPM(p.Hs, p.Tp, om);
+    pts.push({ om, S: r.S }); gamma = r.gamma; alpha = r.alpha;
+    if (r.S > Smax) Smax = r.S;
+    m0 += r.S * dw;
+  }
+  const muted = cssVar('--muted'), line = cssVar('--line'), accent = cssVar('--accent');
+  ctx.strokeStyle = line; ctx.lineWidth = 1;
+  ctx.fillStyle = muted; ctx.font = '10px ui-monospace, monospace';
+  const X = om => m.l + (om / wMax) * iw;
+  const Y = S => m.t + ih - (S / (Smax * 1.08)) * ih;
+  for (let i = 0; i <= 4; i++) {
+    const y = m.t + (i / 4) * ih;
+    ctx.beginPath(); ctx.moveTo(m.l, y); ctx.lineTo(w - m.r, y); ctx.stroke();
+  }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let i = 0; i <= 4; i++) {
+    const om = (i / 4) * wMax;
+    ctx.fillText(om.toFixed(1), X(om), h - m.b + 6);
+  }
+  ctx.fillText('ω (rad/s)', m.l + iw / 2, h - 12);
+  // fill + line
+  ctx.beginPath(); ctx.moveTo(X(pts[0].om), Y(0));
+  pts.forEach(pt => ctx.lineTo(X(pt.om), Y(pt.S)));
+  ctx.lineTo(X(pts[pts.length - 1].om), Y(0)); ctx.closePath();
+  const grad = ctx.createLinearGradient(0, m.t, 0, m.t + ih);
+  grad.addColorStop(0, accent + '55'); grad.addColorStop(1, accent + '00');
+  ctx.fillStyle = grad; ctx.fill();
+  ctx.strokeStyle = accent; ctx.lineWidth = 2;
+  ctx.beginPath(); pts.forEach((pt, i) => i ? ctx.lineTo(X(pt.om), Y(pt.S)) : ctx.moveTo(X(pt.om), Y(pt.S))); ctx.stroke();
+  // peak marker
+  let pk = pts[0]; pts.forEach(pt => { if (pt.S > pk.S) pk = pt; });
+  ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(X(pk.om), Y(pk.S), 3.5, 0, 7); ctx.fill();
+
+  el('d_gamma').textContent = fmt(gamma, 2);
+  el('d_alpha').textContent = alpha ? alpha.toExponential(2) : '—';
+  el('d_m0').textContent = fmt(m0, 3) + ' m²';
+  el('d_hm0').textContent = fmt(4 * Math.sqrt(m0), 2) + ' m';
+}
+
+// ============================================================
+//  Live simulation — animated wave train + bobbing cylinder
+// ============================================================
+let simTime = 0, lastTs = null, playing = true, curRes = null, curP = null;
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (reduceMotion) playing = false;
+
+function surfaceEta(res, p, x, t) {
+  // Airy + 2nd-order Stokes sharpening for visual realism
+  const th = res.k * x - res.omega * t;
+  const kh = res.kh;
+  const c2 = Math.cosh(kh) * (2 + Math.cosh(2 * kh)) / (4 * Math.pow(Math.sinh(kh), 3));
+  return res.a * Math.cos(th) + res.k * res.a * res.a * c2 * Math.cos(2 * th);
+}
+
+function drawSim(ts) {
+  if (!curRes) { requestAnimationFrame(drawSim); return; }
+  const res = curRes, p = curP;
+  if (lastTs !== null && playing) simTime += Math.min(0.05, (ts - lastTs) / 1000) * (p.T / 5); // one period ≈ 5 s real
+  lastTs = ts;
+
+  const { ctx, w, h } = setupCanvas(el('sim'), 320);
+  ctx.clearRect(0, 0, w, h);
+
+  const sky = cssVar('--sky'), seaTop = cssVar('--sea-top'), seaBot = cssVar('--sea-bottom');
+  const hull = cssVar('--hull'), accent = cssVar('--accent'), muted = cssVar('--muted'), ink = cssVar('--ink'), crit = cssVar('--crit');
+
+  const swl = h * 0.40;
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, w, swl);
+  const sg = ctx.createLinearGradient(0, swl, 0, h);
+  sg.addColorStop(0, seaTop); sg.addColorStop(1, seaBot);
+  ctx.fillStyle = sg; ctx.fillRect(0, swl, w, h - swl);
+
+  // scale: pixels per metre chosen so draft+freeboard+wave fit
+  const vertM = Math.max(p.d + p.hexp + p.H, 8);
+  const pxm = Math.min((h * 0.78) / vertM, 24);
+  const mPerPx = 1 / pxm;
+  const xSpanM = w * mPerPx;
+
+  // animated free surface (fill to seabed for clean look)
+  ctx.beginPath();
+  ctx.moveTo(0, h);
+  for (let px = 0; px <= w; px += 3) {
+    const xm = px * mPerPx;
+    const eta = surfaceEta(res, p, xm, simTime);
+    ctx.lineTo(px, swl - eta * pxm);
+  }
+  ctx.lineTo(w, h); ctx.closePath();
+  ctx.fillStyle = sg; ctx.fill();
+  // crest line
+  ctx.strokeStyle = accent; ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let px = 0; px <= w; px += 3) {
+    const xm = px * mPerPx;
+    const eta = surfaceEta(res, p, xm, simTime);
+    px ? ctx.lineTo(px, swl - eta * pxm) : ctx.moveTo(px, swl - eta * pxm);
+  }
+  ctx.stroke();
+  // repaint sky above surface (mask overshoot)
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(0, 0);
+  for (let px = 0; px <= w; px += 3) {
+    const xm = px * mPerPx;
+    ctx.lineTo(px, swl - surfaceEta(res, p, xm, simTime) * pxm);
+  }
+  ctx.lineTo(w, 0); ctx.closePath();
+  ctx.fillStyle = sky; ctx.fill();
+  ctx.restore();
+  // redraw surface line on top
+  ctx.strokeStyle = accent; ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let px = 0; px <= w; px += 3) {
+    const xm = px * mPerPx;
+    const eta = surfaceEta(res, p, xm, simTime);
+    px ? ctx.lineTo(px, swl - eta * pxm) : ctx.moveTo(px, swl - eta * pxm);
+  }
+  ctx.stroke();
+
+  // SWL dashed
+  ctx.strokeStyle = muted; ctx.setLineDash([5, 5]); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, swl); ctx.lineTo(w, swl); ctx.stroke(); ctx.setLineDash([]);
+
+  // --- cylinder response (simple SDOF heave about local surface) ---
+  const cxM = xSpanM / 2;
+  const etaLoc = surfaceEta(res, p, cxM, simTime);
+  const rFreq = res.Tn3 > 0 ? (2 * Math.PI / p.T) / (2 * Math.PI / res.Tn3) : 0;
+  const zeta = 0.15;
+  const rao = 1 / Math.sqrt(Math.pow(1 - rFreq * rFreq, 2) + Math.pow(2 * zeta * rFreq, 2));
+  const raoC = Math.min(rao, 3);
+  const heave = etaLoc * Math.min(1, raoC * Math.exp(-res.k * p.d * 0.5));
+  // pitch follows local surface slope, attenuated
+  const dx = 0.5;
+  const slope = (surfaceEta(res, p, cxM + dx, simTime) - surfaceEta(res, p, cxM - dx, simTime)) / (2 * dx);
+  const tilt = Math.atan(slope) * 0.5;
+
+  const cx = w / 2;
+  const cwPx = Math.max(18, p.D * pxm);
+  const topY = swl - heave * pxm - p.hexp * pxm;
+  const botY = swl - heave * pxm + p.d * pxm;
+
+  ctx.save();
+  ctx.translate(cx, swl - heave * pxm);
+  ctx.rotate(tilt);
+  ctx.translate(-cx, -(swl - heave * pxm));
+
+  ctx.fillStyle = hull; ctx.strokeStyle = ink; ctx.lineWidth = 1.5;
+  roundRect(ctx, cx - cwPx / 2, topY, cwPx, botY - topY, 5);
+  ctx.fill();
+  // submerged tint
+  ctx.save();
+  ctx.beginPath(); ctx.rect(cx - cwPx / 2 - 20, swl - heave * pxm + etaLoc * pxm * 0, cwPx + 40, h); ctx.clip();
+  ctx.globalAlpha = 0.28; ctx.fillStyle = '#000';
+  roundRect(ctx, cx - cwPx / 2, topY, cwPx, botY - topY, 5); ctx.fill();
+  ctx.restore();
+  roundRect(ctx, cx - cwPx / 2, topY, cwPx, botY - topY, 5); ctx.stroke();
+  ctx.restore();
+
+  // --- instantaneous force arrow ---
+  const frac = (simTime % p.T) / p.T;
+  const idx = Math.min(res.series.length - 1, Math.round(frac * (res.series.length - 1)));
+  const Fnow = res.series[idx].Ft;
+  const kN = Fnow / 1000;
+  const mag = Math.min(110, 14 + Math.log10(1 + Math.abs(kN)) * 40);
+  const dir = Math.sign(Fnow) || 1;
+  const ay = swl - heave * pxm + p.d * pxm * 0.45;
+  arrow(ctx, cx + dir * cwPx / 2, ay, cx + dir * (cwPx / 2 + mag), ay, accent, 2.6);
+  ctx.fillStyle = accent; ctx.font = '600 11px ui-monospace, monospace';
+  ctx.textAlign = dir > 0 ? 'left' : 'right'; ctx.textBaseline = 'middle';
+  ctx.fillText(fmt(Math.abs(kN), 1) + ' kN', cx + dir * (cwPx / 2 + mag + 8), ay);
+
+  // wind arrow on freeboard
+  const wKN = res.Fwind / 1000;
+  if (wKN > 0.05) {
+    const wy = topY + p.hexp * pxm * 0.4;
+    const wm = Math.min(80, 12 + Math.log10(1 + wKN) * 34);
+    arrow(ctx, cx - cwPx / 2 - wm, wy, cx - cwPx / 2, wy, muted, 2);
+    ctx.fillStyle = muted; ctx.textAlign = 'right';
+    ctx.fillText(fmt(wKN, 1) + ' kN wind', cx - cwPx / 2 - wm - 8, wy);
+  }
+
+  // HUD
+  ctx.fillStyle = muted; ctx.font = '10px ui-monospace, monospace';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('t = ' + fmt(simTime % p.T, 1) + ' s / T = ' + fmt(p.T, 1) + ' s', 10, 8);
+  ctx.fillText('heave ' + fmt(heave, 2) + ' m · RAO ' + fmt(raoC, 2), 10, 22);
+  ctx.textAlign = 'right';
+  ctx.fillText('λ = ' + fmt(res.lam, 0) + ' m →', w - 10, 8);
+
+  requestAnimationFrame(drawSim);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function arrow(ctx, x1, y1, x2, y2, color, lw) {
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  const ang = Math.atan2(y2 - y1, x2 - x1), s = 7;
+  ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - s * Math.cos(ang - 0.4), y2 - s * Math.sin(ang - 0.4));
+  ctx.lineTo(x2 - s * Math.cos(ang + 0.4), y2 - s * Math.sin(ang + 0.4));
+  ctx.closePath(); ctx.fill();
+}
+
+// ============================================================
+//  Update cycle
+// ============================================================
+function updateReadouts(p) {
+  el('r_H').textContent = fmt(p.H, 1) + ' m';
+  el('r_T').textContent = fmt(p.T, 1) + ' s';
+  el('r_h').textContent = fmt(p.h, 0) + ' m';
+  el('r_Uc').textContent = fmt(p.Uc, 1) + ' m/s';
+  el('r_D').textContent = fmt(p.D, 1) + ' m';
+  el('r_d').textContent = fmt(p.d, 1) + ' m';
+  el('r_hexp').textContent = fmt(p.hexp, 1) + ' m';
+  el('r_Cd').textContent = fmt(p.Cd, 2);
+  el('r_Cm').textContent = fmt(p.Cm, 2);
+  el('r_Vw').textContent = fmt(p.Vw, 0) + ' m/s';
+  el('r_Hs').textContent = fmt(p.Hs, 2) + ' m';
+  el('r_Tp').textContent = fmt(p.Tp, 1) + ' s';
+}
+function setTile(id, kN) {
+  const t = el(id);
+  t.classList.remove('sev-good', 'sev-warn', 'sev-crit');
+  t.classList.add(severity(kN));
+}
+function chip(text, cls) { return '<span class="chip ' + cls + '">' + text + '</span>'; }
+
+function run() {
+  const p = readParams();
+  updateReadouts(p);
+  const res = compute(p);
+  curRes = res; curP = p;
+
+  el('v_wave').textContent = fmt((res.peakTot - res.Fwind > 0 ? Math.max(res.peakI, res.peakD, res.peakTot - res.Fwind) : res.peakTot) / 1000, 1);
+  el('v_air').textContent = fmt(res.Fwind / 1000, 1);
+  el('v_total').textContent = fmt(res.peakTot / 1000, 1);
+  el('v_rms').textContent = fmt(res.rms / 1000, 1);
+  el('v_mom').textContent = fmt(res.peakMom / 1000, 0);
+  el('v_tn3').textContent = fmt(res.Tn3, 1);
+  const share = res.peakI + res.peakD > 0 ? 100 * res.peakD / (res.peakI + res.peakD) : 0;
+  el('v_dragshare').textContent = fmt(share, 0);
+  el('v_disp').textContent = fmt(res.dispM / 1000, 1);
+
+  setTile('tile_wave', (res.peakTot - res.Fwind) / 1000);
+  setTile('tile_air', res.Fwind / 1000);
+  setTile('tile_total', res.peakTot / 1000);
+  setTile('tile_rms', res.rms / 1000);
+
+  el('d_k').textContent = res.k.toFixed(4) + ' rad/m';
+  el('d_lam').textContent = fmt(res.lam, 1) + ' m';
+  el('d_KC').textContent = fmt(res.KC, 2);
+  el('d_ka').textContent = fmt(res.ka, 3);
+  el('d_Re').textContent = res.Re.toExponential(1);
+  el('d_dlam').textContent = fmt(res.Dlam, 3);
+  el('d_cmmcf').textContent = fmt(res.mcf.Cm, 3);
+  el('d_delta').textContent = fmt(res.mcf.delta * 180 / Math.PI, 1) + '°';
+  el('d_steep').textContent = fmt(res.steep, 3);
+  el('d_hh').textContent = fmt(res.breaking, 2);
+  el('d_K').textContent = fmt(res.Kf, 2);
+  el('d_vtip').textContent = fmt(res.vtip, 1) + ' m/s';
+  el('d_beau').textContent = beaufort(p.Vw);
+  const mph = p.Vw * 2.23694;
+  el('d_martin').textContent = fmt(0.004 * mph * mph, 1) + ' psf';
+
+  // regime chips
+  const f = res.flags;
+  let chips = '';
+  chips += f.diffraction
+    ? chip('DIFFRACTION REGIME · D/λ > 1/5', 'info')
+    : chip('MORISON REGIME · slender', 'ok');
+  chips += res.useMCF ? chip('MacCamy–Fuchs active', 'info') : chip('MCF inactive', '');
+  if (f.dragDom) chips += chip('Drag-dominated · KC > 15', 'warn');
+  else if (f.inertiaDom) chips += chip('Inertia-dominated · KC < 5', 'ok');
+  else chips += chip('Mixed drag/inertia', '');
+  if (f.breaking) chips += chip('BREAKING · H/h > 0.78', 'crit');
+  else if (f.steepLimit) chips += chip('STEEPNESS LIMIT · H/λ > 0.14', 'crit');
+  else if (res.steep > 0.04) chips += chip('Steep — Stokes 5th recommended', 'warn');
+  else chips += chip('Airy theory valid', 'ok');
+  if (f.resonance) chips += chip('⚠ HEAVE RESONANCE · T ≈ Tn3', 'crit');
+  el('chips').innerHTML = chips;
+
+  // regime note
+  el('regimeNote').innerHTML = res.useMCF
+    ? 'MacCamy&ndash;Fuchs exact diffraction: <code>C<sub>m</sub> = 4A(ka)/[π(ka)²] = ' + fmt(res.mcf.Cm, 3) + '</code>, force phase shift <code>δ = ' + fmt(res.mcf.delta * 180 / Math.PI, 1) + '°</code> relative to the crest. A(ka) is computed from J&#8321;&prime;, Y&#8321;&prime; Bessel derivatives — not an approximation.'
+    : 'Morison strip integration over the draft: 60 strips, sheared 1/7-power current profile superposed on Airy orbital velocities. Enable MCF or increase D/λ past 1/5 to enter the diffraction regime.';
+
+  drawScope(res);
+  drawSpectrum(p);
+}
+
+// ---- wiring ----
+document.querySelectorAll('input, select').forEach(inp => inp.addEventListener('input', run));
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-body').forEach(b => b.classList.remove('active'));
+    tab.classList.add('active');
+    el('tab-' + tab.dataset.tab).classList.add('active');
+    run();
+  });
+});
+
+el('playBtn').addEventListener('click', () => {
+  playing = !playing;
+  el('playBtn').textContent = playing ? '❚❚ Pause' : '▶ Play';
+});
+if (reduceMotion) el('playBtn').textContent = '▶ Play';
+
+const root = document.documentElement;
+function applyThemeIcon() {
+  const dark = (root.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
+  el('themeIcon').textContent = dark ? '☾' : '☀';
+  el('themeText').textContent = dark ? 'Dark' : 'Light';
+}
+el('themeToggle').addEventListener('click', () => {
+  const cur = root.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  root.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+  applyThemeIcon(); run();
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyThemeIcon(); run(); });
+window.addEventListener('resize', run);
+
+applyThemeIcon();
+run();
+requestAnimationFrame(drawSim);
+</script>

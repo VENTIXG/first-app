@@ -7,10 +7,16 @@
 
   <!-- Apply saved theme before first paint to avoid a flash -->
   <script>
-    if (localStorage.getItem('wfc-theme') === 'dark' ||
-        (!localStorage.getItem('wfc-theme') &&
-         window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      document.documentElement.classList.add('dark');
+    try {
+      if (localStorage.getItem('wfc-theme') === 'dark' ||
+          (!localStorage.getItem('wfc-theme') &&
+           window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+    } catch (e) {
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+      }
     }
   </script>
 

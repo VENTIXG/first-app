@@ -12,7 +12,11 @@ function readAll() {
 }
 
 function writeAll(map) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+  } catch {
+    /* storage unavailable (private mode, sandboxed frame) — scenarios just don't persist */
+  }
 }
 
 /** Save (or overwrite) a named scenario. Returns the sorted name list. */

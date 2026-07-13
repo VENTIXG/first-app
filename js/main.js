@@ -234,7 +234,9 @@ function initTheme() {
   const btn = $('#theme-toggle');
   const apply = (dark) => {
     document.documentElement.classList.toggle('dark', dark);
-    localStorage.setItem('wfc-theme', dark ? 'dark' : 'light');
+    try {
+      localStorage.setItem('wfc-theme', dark ? 'dark' : 'light');
+    } catch { /* storage unavailable — theme just won't persist */ }
     btn.textContent = dark ? '☀️ Light' : '🌙 Dark';
     // Chart colors come from CSS vars — re-render so SVG picks them up
     if (state.results) renderForceChart($('#chart'), state.results.timeData);

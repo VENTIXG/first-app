@@ -11,7 +11,7 @@ const SERIES = [
   { key: 'total', label: 'Total', varName: '--series-3' },
 ];
 
-const M = { top: 16, right: 76, bottom: 30, left: 58 }; // plot margins [px]
+const M = { top: 16, right: 76, bottom: 30 }; // fixed plot margins [px]; left is dynamic
 
 const fmtkN = (n) => `${(n / 1000).toFixed(2)} kN`;
 
@@ -25,8 +25,6 @@ export function renderForceChart(container, timeData) {
 
   const width = container.clientWidth || 640;
   const height = 320;
-  const pw = width - M.left - M.right; // plot width
-  const ph = height - M.top - M.bottom;
 
   const tMax = timeData[timeData.length - 1].t;
   let yMin = 0;
@@ -41,7 +39,25 @@ export function renderForceChart(container, timeData) {
   yMin -= pad;
   yMax += pad;
 
-  const x = (t) => M.left + (t / tMax) * pw;
+  // "Nice" tick step (1/2/5 × 10^n) targeting ~5 gridlines, in kN
+  const rangeKN = (yMax - yMin) / 1000;
+  const rawStep = rangeKN / 5;
+  const mag = 10 ** Math.floor(Math.log10(rawStep));
+  const step = ([1, 2, 5, 10].find((m) => rawStep / mag <= m) || 10) * mag;
+  const decimals = Math.max(0, -Math.floor(Math.log10(step)));
+  const ticks = [];
+  for (let v = Math.ceil(yMin / 1000 / step) * step; v <= yMax / 1000 + 1e-9; v += step) {
+    ticks.push({ v: v * 1000, label: v.toLocaleString('en-US', {
+      minimumFractionDigits: decimals, maximumFractionDigits: decimals }) });
+  }
+
+  // Left margin sized to the widest tick label (6.4px/char at 11px font)
+  const maxChars = Math.max(...ticks.map((t) => t.label.length), 3);
+  const left = 28 + Math.ceil(maxChars * 6.4);
+  const pw = width - left - M.right; // plot width
+  const ph = height - M.top - M.bottom;
+
+  const x = (t) => left + (t / tMax) * pw;
   const y = (v) => M.top + (1 - (v - yMin) / (yMax - yMin)) * ph;
 
   const grid = cssVar(container, '--chart-grid');
@@ -63,19 +79,17 @@ export function renderForceChart(container, timeData) {
   };
 
   // Horizontal gridlines + y tick labels
-  const nTicks = 5;
-  for (let i = 0; i <= nTicks; i++) {
-    const v = yMin + ((yMax - yMin) * i) / nTicks;
-    const yy = y(v);
-    el('line', { x1: M.left, x2: M.left + pw, y1: yy, y2: yy, stroke: grid, 'stroke-width': 1 });
+  for (const tick of ticks) {
+    const yy = y(tick.v);
+    el('line', { x1: left, x2: left + pw, y1: yy, y2: yy, stroke: grid, 'stroke-width': 1 });
     el('text', {
-      x: M.left - 8, y: yy + 4, 'text-anchor': 'end', fill: inkMuted,
+      x: left - 8, y: yy + 4, 'text-anchor': 'end', fill: inkMuted,
       'font-size': 11, 'font-family': 'system-ui, sans-serif',
-    }).textContent = (v / 1000).toFixed(1);
+    }).textContent = tick.label;
   }
 
   // Zero baseline (emphasized) + x axis ticks
-  el('line', { x1: M.left, x2: M.left + pw, y1: y(0), y2: y(0), stroke: axis, 'stroke-width': 1.5 });
+  el('line', { x1: left, x2: left + pw, y1: y(0), y2: y(0), stroke: axis, 'stroke-width': 1.5 });
   for (let i = 0; i <= 4; i++) {
     const t = (tMax * i) / 4;
     el('text', {
@@ -83,11 +97,11 @@ export function renderForceChart(container, timeData) {
       'font-size': 11, 'font-family': 'system-ui, sans-serif',
     }).textContent = `${t.toFixed(1)} s`;
   }
-  // Axis titles
+  // Axis title (fixed at the far left, clear of tick labels)
   el('text', {
-    x: M.left - 42, y: M.top + ph / 2, fill: inkMuted, 'font-size': 11,
+    x: 12, y: M.top + ph / 2, fill: inkMuted, 'font-size': 11,
     'font-family': 'system-ui, sans-serif', 'text-anchor': 'middle',
-    transform: `rotate(-90 ${M.left - 42} ${M.top + ph / 2})`,
+    transform: `rotate(-90 12 ${M.top + ph / 2})`,
   }).textContent = 'Force [kN]';
 
   // Series lines
@@ -112,7 +126,7 @@ export function renderForceChart(container, timeData) {
   }
   for (const { s, y: ly } of labels) {
     el('text', {
-      x: M.left + pw + 6, y: ly, fill: cssVar(container, s.varName),
+      x: left + pw + 6, y: ly, fill: cssVar(container, s.varName),
       'font-size': 11, 'font-weight': 600, 'font-family': 'system-ui, sans-serif',
     }).textContent = s.label;
   }
@@ -136,8 +150,8 @@ export function renderForceChart(container, timeData) {
   svg.addEventListener('mousemove', (ev) => {
     const rect = svg.getBoundingClientRect();
     const px = ((ev.clientX - rect.left) / rect.width) * width;
-    if (px < M.left || px > M.left + pw) return;
-    const idx = Math.round(((px - M.left) / pw) * (timeData.length - 1));
+    if (px < left || px > left + pw) return;
+    const idx = Math.round(((px - left) / pw) * (timeData.length - 1));
     const p = timeData[Math.max(0, Math.min(timeData.length - 1, idx))];
 
     crosshair.setAttribute('x1', x(p.t));

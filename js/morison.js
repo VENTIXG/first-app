@@ -1,9 +1,12 @@
 // Morison force engine: drag + inertia on a surface-piercing cylinder,
-// with optional MacCamy-Fuchs diffraction correction and wind drag.
+// strip-integrated over the draft, with a depth-varying current profile,
+// optional MacCamy-Fuchs diffraction correction, and wind drag.
 
-import { waveParameters, kinematics, breakingChecks, KIN_VISCOSITY } from './waveTheory.js';
+import { prepareWave, kinematics, breakingChecks, KIN_VISCOSITY } from './waveTheory.js';
 
 const N_POINTS = 200; // samples per wave period for the time series
+const N_STRIPS = 24;  // vertical strips over the draft for force integration
+const Z0 = 0.05;      // seabed roughness length for the log profile [m]
 
 /**
  * Empirical MacCamy-Fuchs diffraction correction (legacy formulation).
@@ -26,12 +29,16 @@ export function macCamyFuchsCorrection(ka) {
 }
 
 /**
- * Current velocity at elevation z (z=0 surface, z=-h bed).
- * 'uniform' returns the surface value everywhere; the logarithmic
- * profile arrives in Phase 2.
+ * Current velocity at elevation z (z = 0 surface, z = -h bed).
+ *  - 'uniform': surface value everywhere
+ *  - 'log':     u(z) = U_c * ln((z+h)/z0) / ln(h/z0), zero near the bed
  */
 export function currentVelocity(z, params) {
-  return params.U_c; // TODO Phase 2: logarithmic profile
+  if (params.currentProfile === 'log') {
+    const heightAboveBed = Math.max(z + params.h, Z0);
+    return (params.U_c * Math.log(heightAboveBed / Z0)) / Math.log(params.h / Z0);
+  }
+  return params.U_c;
 }
 
 /**
@@ -39,14 +46,18 @@ export function currentVelocity(z, params) {
  * plus peak/RMS statistics and dimensionless parameters.
  */
 export function computeForces(params) {
-  const wp = waveParameters(params.H, params.T, params.h);
+  const wp = prepareWave(params.waveTheory, params.H, params.T, params.h);
   const { omega, k, wavelength } = wp;
 
-  // Reference kinematics at the cylinder mid-draft
+  // Reference kinematics at mid-draft: max over one period (theory-agnostic)
   const zRef = -params.d / 2;
-  const decayRef = Math.cosh(k * (zRef + params.h)) / Math.sinh(k * params.h);
-  const U_m = wp.a * omega * decayRef;         // max wave particle velocity
-  const A_m = wp.a * omega * omega * decayRef; // max wave particle acceleration
+  let U_m = 0;
+  let A_m = 0;
+  for (let i = 0; i < 60; i++) {
+    const { u, dudt } = kinematics(zRef, (i / 60) * params.T, wp);
+    U_m = Math.max(U_m, Math.abs(u));
+    A_m = Math.max(A_m, Math.abs(dudt));
+  }
 
   // Dimensionless parameters
   const KC = (U_m * params.T) / params.D;
@@ -65,6 +76,14 @@ export function computeForces(params) {
   const F_air =
     0.5 * params.rho_air * params.Cd_air * params.D * params.h_exp * params.V_wind ** 2;
 
+  // Strip elevations (strip centers) and their current velocities
+  const dz = params.d / N_STRIPS;
+  const strips = [];
+  for (let j = 0; j < N_STRIPS; j++) {
+    const z = -params.d + (j + 0.5) * dz;
+    strips.push({ z, uc: currentVelocity(z, params) });
+  }
+
   const timeData = [];
   let peakWave = 0;
   let peakDrag = 0;
@@ -73,14 +92,18 @@ export function computeForces(params) {
 
   for (let i = 0; i < N_POINTS; i++) {
     const t = (i / (N_POINTS - 1)) * params.T;
-    const { u, dudt } = kinematics(params.waveTheory, zRef, t, wp);
-    const V = u + currentVelocity(zRef, params);
 
-    const drag = 0.5 * params.rho * Cd * params.D * Math.abs(V) * V * params.d;
-    const inertia = params.rho * Cm * area * dudt * params.d;
+    let drag = 0;
+    let inertia = 0;
+    for (const strip of strips) {
+      const { u, dudt } = kinematics(strip.z, t, wp);
+      const V = u + strip.uc;
+      drag += 0.5 * params.rho * Cd * params.D * Math.abs(V) * V * dz;
+      inertia += params.rho * Cm * area * dudt * dz;
+    }
+
     const wave = drag + inertia;
     const total = wave + F_air;
-
     timeData.push({ t, drag, inertia, wave, air: F_air, total });
 
     peakWave = Math.max(peakWave, Math.abs(wave));
@@ -107,5 +130,6 @@ export function computeForces(params) {
     totalPeakForce: peakWave + F_air,
     rmsForce: Math.sqrt(sumSq / N_POINTS),
     breaking: breakingChecks(wp),
+    stokesConverged: wp.converged,
   };
 }

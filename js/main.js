@@ -13,10 +13,24 @@ const FIELD_GROUPS = [
   {
     title: 'Wave',
     fields: [
+      {
+        key: 'waveTheory', label: 'Wave theory', type: 'select',
+        options: [
+          { value: 'airy', label: 'Airy (linear)' },
+          { value: 'stokes5', label: 'Stokes 5th order' },
+        ],
+      },
       { key: 'H', label: 'Wave height', unit: 'm', min: 0.1, max: 15, step: 0.1 },
       { key: 'T', label: 'Wave period', unit: 's', min: 2, max: 25, step: 0.1 },
       { key: 'h', label: 'Water depth', unit: 'm', min: 2, max: 500, step: 0.5 },
       { key: 'U_c', label: 'Surface current', unit: 'm/s', min: 0, max: 3, step: 0.05 },
+      {
+        key: 'currentProfile', label: 'Current profile', type: 'select',
+        options: [
+          { value: 'uniform', label: 'Uniform over depth' },
+          { value: 'log', label: 'Logarithmic (zero at bed)' },
+        ],
+      },
     ],
   },
   {
@@ -77,7 +91,9 @@ function buildSidebar() {
     list.className = 'space-y-4';
 
     for (const f of group.fields) {
-      list.appendChild(f.type === 'checkbox' ? buildCheckbox(f) : buildNumberField(f));
+      const builder =
+        f.type === 'checkbox' ? buildCheckbox : f.type === 'select' ? buildSelect : buildNumberField;
+      list.appendChild(builder(f));
     }
     section.appendChild(list);
     root.appendChild(section);
@@ -121,6 +137,24 @@ function buildNumberField(f) {
   return wrap;
 }
 
+function buildSelect(f) {
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `
+    <label for="in-${f.key}" class="mb-1 block text-sm text-neutral-700 dark:text-neutral-200">${f.label}</label>
+    <select id="in-${f.key}"
+      class="w-full rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm
+             focus:border-sky-500 focus:outline-none dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100">
+      ${f.options.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')}
+    </select>`;
+  const sel = wrap.querySelector('select');
+  sel.value = state.get(f.key);
+  sel.addEventListener('change', () => state.set(f.key, sel.value));
+  state.on('params:changed', ({ keys, params }) => {
+    if (keys.includes(f.key)) sel.value = params[f.key];
+  });
+  return wrap;
+}
+
 function buildCheckbox(f) {
   const wrap = document.createElement('label');
   wrap.className = 'flex cursor-pointer items-center justify-between';
@@ -159,7 +193,34 @@ function render(results) {
   for (const t of RESULT_TILES) {
     $(`#tile-${t.id}`).textContent = t.fmt(results);
   }
+  renderWarnings(results);
   renderForceChart($('#chart'), results.timeData);
+}
+
+function renderWarnings(results) {
+  const banner = $('#warning-banner');
+  const b = results.breaking;
+  const messages = [];
+  if (b.depthLimited) {
+    messages.push(
+      `<strong>Wave breaking limit exceeded (depth):</strong> H/h = ${b.depthRatio.toFixed(2)} ` +
+      `&gt; 0.78 — the wave breaks before reaching this depth.`
+    );
+  }
+  if (b.steepnessLimited) {
+    messages.push(
+      `<strong>Wave breaking limit exceeded (steepness):</strong> H/λ = ${b.steepness.toFixed(3)} ` +
+      `&gt; ${b.micheLimit.toFixed(3)} (Miche criterion) — the wave is steeper than it can physically be.`
+    );
+  }
+  if (results.stokesConverged === false) {
+    messages.push(
+      `<strong>Stokes 5th order did not converge</strong> for these inputs — results are unreliable. ` +
+      `Reduce wave height or use deeper water.`
+    );
+  }
+  banner.innerHTML = messages.map((m) => `<div>⚠️ ${m}</div>`).join('');
+  banner.classList.toggle('hidden', messages.length === 0);
 }
 
 // ---------------------------------------------------------------------------

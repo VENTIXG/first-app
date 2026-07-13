@@ -12,6 +12,9 @@ const state = new AppState();
 const $ = (sel) => document.querySelector(sel);
 const kN = (n) => `${(n / 1000).toFixed(2)} kN`;
 
+// Which force series the chart currently shows: 'global' or `body-${id}`.
+let selectedSeries = 'global';
+
 // ---------------------------------------------------------------------------
 // Environment schema — sidebar controls for the shared environment.
 // ---------------------------------------------------------------------------
@@ -256,6 +259,34 @@ function renderBodyManager() {
 }
 
 // ---------------------------------------------------------------------------
+// Chart series selector — toggle between the summed Global Platform Force
+// and any individual body's own force time series.
+// ---------------------------------------------------------------------------
+
+function buildChartSelector() {
+  const sel = $('#chart-series-select');
+  const bodies = state.bodies;
+  const stillValid = selectedSeries === 'global' || bodies.some((b) => `body-${b.id}` === selectedSeries);
+  if (!stillValid) selectedSeries = 'global';
+  sel.innerHTML =
+    '<option value="global">Global Platform Force</option>' +
+    bodies.map((b, i) => `<option value="body-${b.id}">Body ${i + 1} Force (${b.type})</option>`).join('');
+  sel.value = selectedSeries;
+}
+
+/** Resolve the currently selected series to { timeData, label } for the chart. */
+function currentSeries(results) {
+  if (selectedSeries !== 'global') {
+    const id = Number(selectedSeries.slice('body-'.length));
+    const idx = results.bodies.findIndex((b) => b.id === id);
+    if (idx !== -1) {
+      return { timeData: results.bodies[idx].timeData, label: `Body ${idx + 1} Force` };
+    }
+  }
+  return { timeData: results.global.timeData, label: 'Global Platform Force' };
+}
+
+// ---------------------------------------------------------------------------
 // Result rendering.
 // ---------------------------------------------------------------------------
 
@@ -278,9 +309,11 @@ function render(results) {
     if (sub) sub.textContent = t.sub ? t.sub(results) : '';
   }
   renderWarnings(results);
-  renderForceChart($('#chart'), results.global.timeData);
+  const { timeData, label } = currentSeries(results);
+  $('#chart-title').textContent = `${label} — one wave period`;
+  renderForceChart($('#chart'), timeData);
   renderBodyTable(results);
-  viz?.update(results.wave, state.bodies);
+  viz?.update(results.wave, state.bodies, results.bodies);
 }
 
 function renderBodyTable(results) {
@@ -364,7 +397,7 @@ function initTheme() {
       localStorage.setItem('wfc-theme', dark ? 'dark' : 'light');
     } catch { /* storage unavailable — theme just won't persist */ }
     btn.textContent = dark ? '☀️ Light' : '🌙 Dark';
-    if (state.results) renderForceChart($('#chart'), state.results.global.timeData);
+    if (state.results) renderForceChart($('#chart'), currentSeries(state.results).timeData);
   };
   apply(document.documentElement.classList.contains('dark'));
   btn.addEventListener('click', () => apply(!document.documentElement.classList.contains('dark')));
@@ -388,6 +421,15 @@ function initTools() {
     const bodies = state.bodies;
     const last = bodies[bodies.length - 1];
     state.addBody({ x: (last?.x ?? 0) + 30, type: last?.type ?? 'cylinder' });
+  });
+
+  $('#chart-series-select').addEventListener('change', (e) => {
+    selectedSeries = e.target.value;
+    if (state.results) {
+      const { timeData, label } = currentSeries(state.results);
+      $('#chart-title').textContent = `${label} — one wave period`;
+      renderForceChart($('#chart'), timeData);
+    }
   });
 
   $('#scenario-save').addEventListener('click', () => {
@@ -415,7 +457,8 @@ function initTools() {
 
   $('#export-pdf').addEventListener('click', async () => {
     if (!state.results) return;
-    const ok = await exportPDF(state.environment, state.bodies, state.results, $('#chart'));
+    const { label } = currentSeries(state.results);
+    const ok = await exportPDF(state.environment, state.bodies, state.results, $('#chart'), label);
     if (!ok) alert('PDF export unavailable — jsPDF could not be loaded from the CDN.');
   });
 }
@@ -429,7 +472,7 @@ let viz = null;
 import('./viz3d.js')
   .then((m) => {
     viz = m.initViz3d($('#viz3d'));
-    if (state.results) viz.update(state.results.wave, state.bodies);
+    if (state.results) viz.update(state.results.wave, state.bodies, state.results.bodies);
   })
   .catch(() => {
     $('#viz3d').innerHTML =
@@ -443,22 +486,26 @@ import('./viz3d.js')
 
 buildEnv();
 renderBodyManager();
+buildChartSelector();
 buildTiles();
 renderLegend($('#legend'));
 initTheme();
 initTools();
 
 // Environment or body value edits → recalc. Structural body changes also
-// rebuild the manager cards and the 3D meshes.
+// rebuild the manager cards, the chart selector options, and the 3D meshes.
 state.on('env:changed', recalculate);
 state.on('bodies:changed', (e) => {
-  if (e.reason !== 'update') renderBodyManager();
+  if (e.reason !== 'update') {
+    renderBodyManager();
+    buildChartSelector();
+  }
   recalculate();
 });
 state.on('results:changed', render);
 
 new ResizeObserver(() => {
-  if (state.results) renderForceChart($('#chart'), state.results.global.timeData);
+  if (state.results) renderForceChart($('#chart'), currentSeries(state.results).timeData);
 }).observe($('#chart'));
 
 recalculate();

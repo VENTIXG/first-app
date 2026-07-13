@@ -66,7 +66,7 @@ export function exportCSV(results) {
 }
 
 /** One-page PDF summary. Returns false if jsPDF isn't loaded. */
-export async function exportPDF(env, bodies, results, chartContainer) {
+export async function exportPDF(env, bodies, results, chartContainer, chartLabel = 'Global Platform Force') {
   if (!window.jspdf?.jsPDF) return false;
   const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
   const W = 210;
@@ -157,7 +157,7 @@ export async function exportPDF(env, bodies, results, chartContainer) {
       y += 5;
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      doc.text('Global base shear - one wave period', MARGIN, y);
+      doc.text(`${chartLabel} - one wave period`, MARGIN, y);
       y += 3;
       const imgW = W - 2 * MARGIN;
       doc.addImage(png, 'PNG', MARGIN, y, imgW, imgW * (420 / 980), undefined, 'FAST');

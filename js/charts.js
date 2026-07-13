@@ -242,6 +242,34 @@ function renderSvgChart(container, timeData) {
   container.appendChild(svg);
 }
 
+/**
+ * PNG data-URL snapshot of the current chart (for the PDF report).
+ * Uses Plotly's exporter when active, else rasterizes the fallback SVG.
+ */
+export async function chartSnapshot(container) {
+  if (window.Plotly && container.dataset.plotly) {
+    return window.Plotly.toImage(container, { format: 'png', width: 980, height: 420, scale: 2 });
+  }
+  const svg = container.querySelector('svg');
+  if (!svg) return null;
+  const xml = new XMLSerializer().serializeToString(svg);
+  const img = new Image();
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(xml)));
+  });
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width * 2;
+  canvas.height = img.height * 2;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.scale(2, 2);
+  ctx.drawImage(img, 0, 0);
+  return canvas.toDataURL('image/png');
+}
+
 /** Legend row (HTML, above the plot). */
 export function renderLegend(container) {
   container.innerHTML = SERIES.map(

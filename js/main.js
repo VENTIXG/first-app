@@ -4,6 +4,8 @@
 import { AppState } from './state.js';
 import { computeForces } from './morison.js';
 import { renderForceChart, renderLegend } from './charts.js';
+import { exportCSV, exportPDF } from './export.js';
+import { saveScenario, listScenarios, loadScenario, deleteScenario } from './scenarios.js';
 
 // ---------------------------------------------------------------------------
 // Input schema — the single source of truth for sidebar controls.
@@ -244,6 +246,51 @@ function initTheme() {
 }
 
 // ---------------------------------------------------------------------------
+// Scenarios (localStorage) + report export
+// ---------------------------------------------------------------------------
+
+function refreshScenarioList(names) {
+  const sel = $('#scenario-list');
+  sel.innerHTML = names.length
+    ? names.map((n) => `<option value="${n.replace(/"/g, '&quot;')}">${n}</option>`).join('')
+    : '<option value="" disabled selected>No saved scenarios</option>';
+}
+
+function initTools() {
+  refreshScenarioList(listScenarios());
+
+  $('#scenario-save').addEventListener('click', () => {
+    const input = $('#scenario-name');
+    const name =
+      input.value.trim() ||
+      `Scenario ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`;
+    refreshScenarioList(saveScenario(name, state.params));
+    $('#scenario-list').value = name;
+    input.value = '';
+  });
+
+  $('#scenario-load').addEventListener('click', () => {
+    const params = loadScenario($('#scenario-list').value);
+    if (params) state.replace(params);
+  });
+
+  $('#scenario-delete').addEventListener('click', () => {
+    const name = $('#scenario-list').value;
+    if (name) refreshScenarioList(deleteScenario(name));
+  });
+
+  $('#export-csv').addEventListener('click', () => {
+    if (state.results) exportCSV(state.results);
+  });
+
+  $('#export-pdf').addEventListener('click', async () => {
+    if (!state.results) return;
+    const ok = await exportPDF(state.params, state.results, $('#chart'));
+    if (!ok) alert('PDF export unavailable — jsPDF could not be loaded from the CDN.');
+  });
+}
+
+// ---------------------------------------------------------------------------
 // 3D visualization — dynamic import so a three.js CDN failure degrades
 // gracefully instead of breaking the whole app.
 // ---------------------------------------------------------------------------
@@ -268,6 +315,7 @@ buildSidebar();
 buildTiles();
 renderLegend($('#legend'));
 initTheme();
+initTools();
 
 state.on('params:changed', recalculate);
 state.on('results:changed', render);

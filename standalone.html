@@ -275,6 +275,7 @@
         <button class="tab" data-tab="bodies" role="tab">Bodies</button>
         <button class="tab" data-tab="coef" role="tab">Coefficients</button>
         <button class="tab" data-tab="air" role="tab">Wind</button>
+        <button class="tab" data-tab="array" role="tab">Array study</button>
       </div>
 
       <div class="tab-body active" id="tab-wave">
@@ -373,6 +374,37 @@
           <div class="drow"><span>Martin P</span><span id="d_martin">—</span></div>
         </div>
       </div>
+
+      <div class="tab-body" id="tab-array">
+        <p style="font-size:0.8rem;color:var(--muted);margin:0 0 12px">
+          Frequency-domain Morison sweep for an in-line array of N identical surface-piercing
+          cylinders (7-step algorithm: dispersion → I₁, I₂ closed-form depth integrals →
+          C<sub>FI</sub>, C<sub>FD</sub> → array factor Q → |F| = |Q|·√(C²<sub>FI</sub>+C²<sub>FD</sub>)).
+          Drag linearised by Fourier: |cos|cos → (8/3π)cos.
+        </p>
+        <div class="brow">
+          <div class="field"><label>Cylinders N</label>
+            <select id="aN"><option>3</option><option>5</option><option selected>7</option><option>9</option></select></div>
+          <div class="field"><label>Spacing L <span class="unit">m</span></label>
+            <input type="number" id="aL" value="30" min="5" max="200"></div>
+          <div class="field"><label>Diameter D <span class="unit">m</span></label>
+            <input type="number" id="aD" value="10" min="1" max="40" step="0.5"></div>
+          <div class="field"><label>Draft T <span class="unit">m</span></label>
+            <input type="number" id="aT" value="26" min="1" max="60" step="0.5"></div>
+          <div class="field"><label>Depth d <span class="unit">m</span></label>
+            <input type="number" id="ad" value="60" min="10" max="500" step="1"></div>
+          <div class="field"><label>Wave height H <span class="unit">m</span></label>
+            <input type="number" id="aH" value="2" min="0.1" max="15" step="0.1"></div>
+          <div class="field"><label>C<sub>M</sub></label>
+            <input type="number" id="aCM" value="2" min="1" max="3" step="0.05"></div>
+          <div class="field"><label>C<sub>D</sub></label>
+            <input type="number" id="aCD" value="1" min="0.2" max="2" step="0.05"></div>
+          <div class="field"><label>ω max <span class="unit">rad/s</span></label>
+            <input type="number" id="aWmax" value="1.5" min="0.5" max="3" step="0.1"></div>
+          <div class="field"><label>ω step (table) <span class="unit">rad/s</span></label>
+            <input type="number" id="aWstep" value="0.1" min="0.05" max="0.5" step="0.05"></div>
+        </div>
+      </div>
     </section>
     </div>
 
@@ -396,6 +428,40 @@
       </div>
 
       <div class="note" style="margin:0 18px 18px;padding:12px 14px;font-size:0.8rem;color:var(--muted);background:var(--accent-soft);border-radius:8px;border-left:3px solid var(--accent)" id="phaseNote"></div>
+    </section>
+
+    <section class="panel" aria-label="Array study">
+      <div class="panel-head">
+        <div class="ph-left"><span class="dot"></span><h2>Array Study · Morison Frequency Sweep</h2></div>
+      </div>
+      <div class="tiles" style="grid-template-columns:repeat(4,1fr)">
+        <div class="tile neutral"><div class="tlabel">Peak |F|</div><div class="tval"><span id="a_peakF">0</span><span class="tunit">kN</span></div></div>
+        <div class="tile neutral"><div class="tlabel">at ω</div><div class="tval"><span id="a_peakW">0</span><span class="tunit">rad/s</span></div></div>
+        <div class="tile neutral"><div class="tlabel">Q max</div><div class="tval"><span id="a_Qmax">0</span><span class="tunit"></span></div></div>
+        <div class="tile neutral"><div class="tlabel">Morison valid to</div><div class="tval"><span id="a_valid">0</span><span class="tunit">rad/s</span></div></div>
+      </div>
+      <div class="scope-wrap">
+        <div class="scope-head">
+          <h3>|F(ω)| and array factor Q(ω)</h3>
+          <div class="legend">
+            <span><i style="background:var(--accent)"></i>|F| kN</span>
+            <span><i style="background:var(--hull)"></i>Q</span>
+            <span><i style="background:var(--crit)"></i>D/λ &gt; 0.2</span>
+          </div>
+        </div>
+        <div class="canvas-frame"><canvas id="arrChart" height="250"></canvas></div>
+      </div>
+      <div class="scope-wrap">
+        <div class="scope-head"><h3>Per-frequency results (7-step algorithm)</h3></div>
+        <div style="overflow-x:auto;border:1px solid var(--line);border-radius:10px">
+          <table class="ref" id="arrTable" style="margin:0;min-width:640px"></table>
+        </div>
+      </div>
+      <div class="note" style="margin:0 18px 18px;padding:12px 14px;font-size:0.8rem;color:var(--muted);background:var(--accent-soft);border-radius:8px;border-left:3px solid var(--accent)">
+        I₁ = [sinh(kd) − sinh(k(d−T))]/k · I₂ = T/2 + [sinh(2kd) − sinh(2k(d−T))]/(4k) ·
+        C<sub>FI</sub> = C<sub>M</sub>ρπD²Hω²I₁/[8sinh(kd)] · C<sub>FD</sub> = C<sub>D</sub>ρDH²ω²I₂/[3π·sinh²(kd)] ·
+        Q = 1 + 2Σcos(m·L·k) · rows with * are outside Morison validity (D/λ &gt; 0.2).
+      </div>
     </section>
 
     <section class="panel" aria-label="3D live view">
@@ -951,6 +1017,126 @@ function shadeMix(hex1,hex2,f,lum){
   return `rgb(${Math.max(0,Math.min(255,r))},${Math.max(0,Math.min(255,g))},${Math.max(0,Math.min(255,b))})`;
 }
 
+/* ============ Array study (thesis Part A, §3.1.1–3.1.8) ============ */
+function arrayPoint(w, ap){
+  // 7-step algorithm — verified against thesis Table 6
+  const k=solveDispersion(w, ap.d), lam=2*Math.PI/k;
+  const I1=(Math.sinh(k*ap.d)-Math.sinh(k*(ap.d-ap.T)))/k;
+  const I2=ap.T/2+(Math.sinh(2*k*ap.d)-Math.sinh(2*k*(ap.d-ap.T)))/(4*k);
+  const CFI=ap.CM*ap.rho*Math.PI*ap.D*ap.D*ap.H*w*w*I1/(8*Math.sinh(k*ap.d));
+  const CFD=ap.CD*ap.rho*ap.D*ap.H*ap.H*w*w*I2/(3*Math.PI*Math.pow(Math.sinh(k*ap.d),2));
+  let Q=1;
+  for(let m2=1;m2<=(ap.N-1)/2;m2++)Q+=2*Math.cos(m2*ap.L*k);
+  const F=Math.abs(Q)*Math.hypot(CFI,CFD);
+  return {w,k,lam,I1,I2,CFI,CFD,Q,F,Dlam:ap.D/lam,eps:ap.H/(2*lam)};
+}
+function readArrayParams(){
+  return {
+    N:+el('aN').value, L:+el('aL').value, D:+el('aD').value, T:+el('aT').value,
+    d:+el('ad').value, H:+el('aH').value, CM:+el('aCM').value, CD:+el('aCD').value,
+    Wmax:+el('aWmax').value, Wstep:+el('aWstep').value, rho:+el('rho').value
+  };
+}
+function runArray(){
+  const ap=readArrayParams();
+  if(ap.T>=ap.d)ap.T=ap.d-1;              // draft cannot exceed depth
+  // fine sweep for curves + coarse rows for the table
+  const fine=[], rows=[];
+  const wLo=Math.min(0.02,ap.Wstep);
+  for(let w=wLo;w<=ap.Wmax+1e-9;w+=0.01)fine.push(arrayPoint(w,ap));
+  for(let w=ap.Wstep;w<=ap.Wmax+1e-9;w+=ap.Wstep)rows.push(arrayPoint(w,ap));
+
+  // tiles
+  let pk=rows[0];rows.forEach(r=>{if(r.F>pk.F)pk=r;});
+  let Qmax=0;fine.forEach(r=>{if(Math.abs(r.Q)>Qmax)Qmax=Math.abs(r.Q);});
+  let wValid=rows[rows.length-1].w;
+  for(const r of rows){if(r.Dlam>0.2){wValid=r.w-ap.Wstep;break;}}
+  el('a_peakF').textContent=fmt(pk.F/1000,0);
+  el('a_peakW').textContent=fmt(pk.w,1);
+  el('a_Qmax').textContent=fmt(Qmax,2);
+  el('a_valid').textContent=fmt(Math.max(0,wValid),1);
+
+  drawArrayChart(fine,rows,ap);
+  renderArrayTable(rows);
+}
+function drawArrayChart(fine,rows,ap){
+  const {ctx,w,h}=setupCanvas(el('arrChart'),250);
+  ctx.clearRect(0,0,w,h);
+  const m={l:56,r:46,t:12,b:26};
+  const iw=w-m.l-m.r,ih=h-m.t-m.b;
+  const Fmax=Math.max(...fine.map(r=>r.F))*1.06;
+  const Qabs=Math.max(...fine.map(r=>Math.abs(r.Q)))*1.15;
+  const wMax=ap.Wmax;
+  const X=v=>m.l+(v/wMax)*iw;
+  const YF=v=>m.t+ih-(v/Fmax)*ih;
+  const YQ=v=>m.t+ih/2-(v/Qabs)*(ih/2);
+  const line=cssVar('--line'),muted=cssVar('--muted'),accent=cssVar('--accent'),
+        hull=cssVar('--hull'),crit=cssVar('--crit'),strong=cssVar('--line-strong');
+  // shade invalid region D/λ>0.2
+  let wInv=null;
+  for(const r of fine){if(r.Dlam>0.2){wInv=r.w;break;}}
+  if(wInv!==null){
+    ctx.fillStyle=crit+'14';
+    ctx.fillRect(X(wInv),m.t,X(wMax)-X(wInv),ih);
+    ctx.strokeStyle=crit;ctx.setLineDash([4,4]);ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(X(wInv),m.t);ctx.lineTo(X(wInv),m.t+ih);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=crit;ctx.font='9px ui-monospace,monospace';ctx.textAlign='left';ctx.textBaseline='top';
+    ctx.fillText('D/λ>0.2',X(wInv)+4,m.t+2);
+  }
+  // grid + axes
+  ctx.strokeStyle=line;ctx.lineWidth=1;
+  ctx.fillStyle=muted;ctx.font='10px ui-monospace,monospace';
+  ctx.textAlign='right';ctx.textBaseline='middle';
+  for(let i=0;i<=5;i++){
+    const v=(i/5)*Fmax,y=YF(v);
+    ctx.beginPath();ctx.moveTo(m.l,y);ctx.lineTo(w-m.r,y);ctx.stroke();
+    ctx.fillText((v/1000).toFixed(0),m.l-8,y);
+  }
+  ctx.textAlign='center';ctx.textBaseline='top';
+  for(let v=0;v<=wMax+1e-9;v+=0.3)ctx.fillText(v.toFixed(1),X(v),h-m.b+6);
+  ctx.fillText('ω (rad/s)',m.l+iw/2,h-12);
+  ctx.save();ctx.translate(13,m.t+ih/2);ctx.rotate(-Math.PI/2);
+  ctx.textBaseline='middle';ctx.fillText('|F| (kN)',0,0);ctx.restore();
+  // Q right axis
+  ctx.fillStyle=hull;ctx.textAlign='left';ctx.textBaseline='middle';
+  ctx.fillText('+'+Qabs.toFixed(1),w-m.r+6,YQ(Qabs));
+  ctx.fillText('0',w-m.r+6,YQ(0));
+  ctx.fillText('−'+Qabs.toFixed(1),w-m.r+6,YQ(-Qabs));
+  ctx.strokeStyle=strong;ctx.setLineDash([2,4]);
+  ctx.beginPath();ctx.moveTo(m.l,YQ(0));ctx.lineTo(w-m.r,YQ(0));ctx.stroke();ctx.setLineDash([]);
+  // Q curve
+  ctx.strokeStyle=hull;ctx.lineWidth=1.5;ctx.setLineDash([5,3]);
+  ctx.beginPath();fine.forEach((r,i)=>i?ctx.lineTo(X(r.w),YQ(r.Q)):ctx.moveTo(X(r.w),YQ(r.Q)));ctx.stroke();
+  ctx.setLineDash([]);
+  // |F| curve with fill
+  ctx.beginPath();ctx.moveTo(X(fine[0].w),YF(0));
+  fine.forEach(r=>ctx.lineTo(X(r.w),YF(r.F)));
+  ctx.lineTo(X(fine[fine.length-1].w),YF(0));ctx.closePath();
+  const grad=ctx.createLinearGradient(0,m.t,0,m.t+ih);
+  grad.addColorStop(0,accent+'33');grad.addColorStop(1,accent+'00');
+  ctx.fillStyle=grad;ctx.fill();
+  ctx.strokeStyle=accent;ctx.lineWidth=2.2;
+  ctx.beginPath();fine.forEach((r,i)=>i?ctx.lineTo(X(r.w),YF(r.F)):ctx.moveTo(X(r.w),YF(r.F)));ctx.stroke();
+  // table-row markers
+  ctx.fillStyle=accent;
+  rows.forEach(r=>{ctx.beginPath();ctx.arc(X(r.w),YF(r.F),3,0,7);ctx.fill();});
+}
+function renderArrayTable(rows){
+  const t=el('arrTable');
+  let html='<tr><th>ω</th><th>k (m⁻¹)</th><th>λ (m)</th><th>D/λ</th><th>I₁</th><th>I₂</th><th>C_FI kN</th><th>C_FD kN</th><th>Q</th><th>|F| kN</th></tr>';
+  rows.forEach(r=>{
+    const bad=r.Dlam>0.2;
+    const fmtSci=v=>v>=1e4?v.toExponential(2):fmt(v,v>=100?0:2);
+    html+=`<tr${bad?' style="color:var(--crit)"':''}>
+      <td>${fmt(r.w,2)}${bad?'*':''}</td><td>${r.k.toFixed(6)}</td><td>${fmt(r.lam,1)}</td>
+      <td>${fmt(r.Dlam,3)}</td><td>${fmtSci(r.I1)}</td><td>${fmtSci(r.I2)}</td>
+      <td>${fmt(r.CFI/1000,2)}</td><td>${fmt(r.CFD/1000,2)}</td>
+      <td>${(r.Q>=0?'+':'')+fmt(r.Q,4)}</td><td><b>${fmt(r.F/1000,2)}</b></td></tr>`;
+  });
+  t.innerHTML=html;
+}
+
 /* ============ run ============ */
 function run(rerenderCards=true){
   const sys=compute();
@@ -993,12 +1179,16 @@ function run(rerenderCards=true){
   updateValidity(sys);
   updateBodyMeta(sys);
   drawScope(sys);
+  runArray();
   if(rerenderCards)renderBodies(),updateBodyMeta(sys);
 }
 
 /* ============ wiring ============ */
 ['H','T','Lw','h','Uc','rho','Vw','avgT','rhoa'].forEach(id=>{
   el(id).addEventListener('input',()=>run(false));
+});
+['aN','aL','aD','aT','ad','aH','aCM','aCD','aWmax','aWstep'].forEach(id=>{
+  el(id).addEventListener('input',runArray);
 });
 document.querySelectorAll('.tab').forEach(tab=>{
   tab.addEventListener('click',()=>{

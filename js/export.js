@@ -1,41 +1,38 @@
-// Report export: force time-series as CSV, and a one-page PDF summary
-// (inputs, peak forces, dimensionless parameters, chart snapshot) via jsPDF.
+// Report export: global force time-series as CSV, and a one-page PDF summary
+// (environment, body list, global results, heave, breaking) via jsPDF.
 
 import { chartSnapshot } from './charts.js';
-
-const PARAM_ROWS = [
-  ['Wave theory', (p) => (p.waveTheory === 'stokes5' ? 'Stokes 5th order' : 'Airy (linear)')],
-  ['Wave height H', (p) => `${p.H} m`],
-  ['Wave period T', (p) => `${p.T} s`],
-  ['Water depth h', (p) => `${p.h} m`],
-  ['Surface current U_c', (p) => `${p.U_c} m/s`],
-  ['Current profile', (p) => (p.currentProfile === 'log' ? 'Logarithmic' : 'Uniform')],
-  ['Cylinder diameter D', (p) => `${p.D} m`],
-  ['Draft d', (p) => `${p.d} m`],
-  ['Total length L', (p) => `${p.L} m`],
-  ['Drag coefficient Cd', (p) => `${p.Cd}`],
-  ['Inertia coefficient Cm', (p) => `${p.Cm}`],
-  ['MacCamy-Fuchs', (p) => (p.useMacCamy ? 'on' : 'off')],
-  ['Water density', (p) => `${p.rho} kg/m3`],
-  ['Wind speed', (p) => `${p.V_wind} m/s`],
-  ['Air drag coefficient', (p) => `${p.Cd_air}`],
-  ['Exposed height', (p) => `${p.h_exp} m`],
-];
+import { bodyRadius } from './state.js';
 
 const kN = (n) => `${(n / 1000).toFixed(2)} kN`;
 
-const RESULT_ROWS = [
-  ['Peak wave force', (r) => kN(r.peakWaveForce)],
-  ['Peak drag force', (r) => kN(r.peakDragForce)],
-  ['Peak inertia force', (r) => kN(r.peakInertiaForce)],
-  ['Peak wind force', (r) => kN(r.peakAirForce)],
-  ['Total peak force', (r) => kN(r.totalPeakForce)],
-  ['RMS force', (r) => kN(r.rmsForce)],
-  ['Wavelength', (r) => `${r.wavelength.toFixed(1)} m`],
-  ['Keulegan-Carpenter KC', (r) => r.KC.toFixed(2)],
-  ['Reynolds number Re', (r) => r.Re.toExponential(2)],
-  ['Diffraction parameter ka', (r) => r.ka.toFixed(3)],
+const ENV_ROWS = [
+  ['Wave theory', (e) => (e.waveTheory === 'stokes5' ? 'Stokes 5th order' : 'Airy (linear)')],
+  ['Wave height H', (e) => `${e.H} m`],
+  ['Wave period T', (e) => `${e.T} s`],
+  ['Water depth h', (e) => `${e.h} m`],
+  ['Surface current', (e) => `${e.U_c} m/s`],
+  ['Current profile', (e) => ({ power17: '1/7 power law', log: 'Logarithmic' }[e.currentProfile] || 'Uniform')],
+  ['Wind speed', (e) => `${e.V_wind} m/s`],
+  ['Wind exponent', (e) => `${e.windBeta}`],
+  ['Drag / inertia Cd,Cm', (e) => `${e.Cd} / ${e.Cm}`],
+  ['MacCamy-Fuchs', (e) => (e.useMacCamy ? 'on' : 'off')],
 ];
+
+function resultRows(r) {
+  return [
+    ['Global peak base shear', kN(r.global.peakTotal)],
+    ['Global RMS', kN(r.global.rms)],
+    ['Peak drag (summed)', kN(r.global.peakDrag)],
+    ['Peak inertia (summed)', kN(r.global.peakInertia)],
+    ['Total wind base shear', kN(r.global.peakWind)],
+    ['Wavelength', `${r.wavelength.toFixed(1)} m`],
+    ['Array factor', r.arrayFactor.toFixed(3)],
+    ['Heave period T3', `${r.heave.Tn3.toFixed(2)} s`],
+    ['Resonance', r.heave.resonance ? 'YES (within 10%)' : 'no'],
+    ['Number of bodies', `${r.bodies.length}`],
+  ];
+}
 
 function download(filename, blob) {
   const a = document.createElement('a');
@@ -45,25 +42,31 @@ function download(filename, blob) {
   URL.revokeObjectURL(a.href);
 }
 
-/** Force time series as CSV. */
+/** Global base-shear time series (plus per-body columns) as CSV. */
 export function exportCSV(results) {
-  const rows = [['t_s', 'drag_kN', 'inertia_kN', 'wave_kN', 'wind_kN', 'total_kN']];
-  for (const p of results.timeData) {
-    rows.push([
-      p.t.toFixed(4),
-      (p.drag / 1000).toFixed(4),
-      (p.inertia / 1000).toFixed(4),
-      (p.wave / 1000).toFixed(4),
-      (p.air / 1000).toFixed(4),
-      (p.total / 1000).toFixed(4),
-    ]);
+  const bodies = results.bodies;
+  const header = ['t_s', 'global_total_kN', 'global_drag_kN', 'global_inertia_kN', 'global_wind_kN']
+    .concat(bodies.map((_, i) => `body${i + 1}_total_kN`));
+  const rows = [header];
+  const steps = results.global.timeData.length;
+  for (let i = 0; i < steps; i++) {
+    const g = results.global.timeData[i];
+    const row = [
+      g.t.toFixed(4),
+      (g.total / 1000).toFixed(4),
+      (g.drag / 1000).toFixed(4),
+      (g.inertia / 1000).toFixed(4),
+      (g.wind / 1000).toFixed(4),
+    ];
+    for (const b of bodies) row.push((b.timeData[i].total / 1000).toFixed(4));
+    rows.push(row);
   }
   const csv = rows.map((r) => r.join(',')).join('\n');
-  download('wave-forces.csv', new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  download('platform-forces.csv', new Blob([csv], { type: 'text/csv;charset=utf-8' }));
 }
 
 /** One-page PDF summary. Returns false if jsPDF isn't loaded. */
-export async function exportPDF(params, results, chartContainer) {
+export async function exportPDF(env, bodies, results, chartContainer) {
   if (!window.jspdf?.jsPDF) return false;
   const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
   const W = 210;
@@ -72,63 +75,89 @@ export async function exportPDF(params, results, chartContainer) {
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text('Wave Force Calculator - Summary Report', MARGIN, y);
+  doc.text('Multi-Body Hydrodynamic Solver - Summary', MARGIN, y);
   y += 6;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(120);
   doc.text(
     `Generated ${new Date().toISOString().slice(0, 16).replace('T', ' ')} - ` +
-    `Morison equation, strip-integrated over draft`, MARGIN, y);
+    `Morison array, spatial-phase superposition`, MARGIN, y);
   doc.setTextColor(0);
   y += 9;
 
   const col2 = W / 2 + 4;
   const line = (x, yy, label, value) => {
     doc.setFont('helvetica', 'normal');
-    doc.text(label, x, yy);
+    doc.text(String(label), x, yy);
     doc.setFont('helvetica', 'bold');
-    doc.text(value, x + 46, yy);
+    doc.text(String(value), x + 46, yy);
   };
 
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text('Input parameters', MARGIN, y);
-  doc.text('Results', col2, y);
+  doc.text('Environment', MARGIN, y);
+  doc.text('Global results', col2, y);
   y += 5.5;
   doc.setFontSize(9);
 
-  const rowsL = PARAM_ROWS.map(([label, fn]) => [label, fn(params)]);
-  const rowsR = RESULT_ROWS.map(([label, fn]) => [label, fn(results)]);
+  const rowsL = ENV_ROWS.map(([label, fn]) => [label, fn(env)]);
+  const rowsR = resultRows(results);
   const n = Math.max(rowsL.length, rowsR.length);
+  const yStart = y;
   for (let i = 0; i < n; i++) {
     if (rowsL[i]) line(MARGIN, y, rowsL[i][0], rowsL[i][1]);
     if (rowsR[i]) line(col2, y, rowsR[i][0], rowsR[i][1]);
     y += 5;
   }
 
-  // Warnings
+  // Breaking / resonance warnings
   const b = results.breaking;
-  if (b.breaking) {
-    y += 2;
+  if (b.critical || results.heave.resonance) {
+    y += 1;
     doc.setTextColor(190, 30, 30);
     doc.setFont('helvetica', 'bold');
-    const warn = b.depthLimited
-      ? `WARNING: wave breaking limit exceeded - H/h = ${b.depthRatio.toFixed(2)} > 0.78`
-      : `WARNING: wave breaking limit exceeded - H/L = ${b.steepness.toFixed(3)} > ${b.micheLimit.toFixed(3)} (Miche)`;
-    doc.text(warn, MARGIN, y);
+    if (b.critical) {
+      doc.text(`CRITICAL: wave breaking limit exceeded (H/h=${b.depthRatio.toFixed(2)}, H/L=${b.steepness.toFixed(3)})`, MARGIN, y);
+      y += 4.5;
+    }
+    if (results.heave.resonance) {
+      doc.text(`WARNING: heave resonance - T3=${results.heave.Tn3.toFixed(2)}s near T=${env.T}s`, MARGIN, y);
+      y += 4.5;
+    }
     doc.setTextColor(0);
-    y += 4;
   }
+
+  // Per-body table
+  y = Math.max(y, yStart + n * 5) + 4;
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Bodies', MARGIN, y);
+  y += 5;
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  const cols = [MARGIN, MARGIN + 20, MARGIN + 48, MARGIN + 74, MARGIN + 104, MARGIN + 134, MARGIN + 160];
+  ['Body', 'Type', 'x [m]', 'Size [m]', 'Peak |F|', 'RMS', 'KC'].forEach((h, i) => doc.text(h, cols[i], y));
+  y += 4;
+  doc.setFont('helvetica', 'normal');
+  results.bodies.forEach((br, i) => {
+    const input = bodies[i];
+    const size = input ? (input.type === 'sphere' ? `R ${input.radius}` : `D ${input.diameter}`) : '';
+    [
+      `Body ${i + 1}`, br.type, br.x.toFixed(0), size,
+      kN(br.peakTotal), kN(br.rms), br.KC.toFixed(2),
+    ].forEach((v, c) => doc.text(String(v), cols[c], y));
+    y += 4.5;
+  });
 
   // Chart snapshot
   try {
     const png = await chartSnapshot(chartContainer);
     if (png) {
-      y += 4;
+      y += 5;
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      doc.text('Force time series - one wave period', MARGIN, y);
+      doc.text('Global base shear - one wave period', MARGIN, y);
       y += 3;
       const imgW = W - 2 * MARGIN;
       doc.addImage(png, 'PNG', MARGIN, y, imgW, imgW * (420 / 980), undefined, 'FAST');
@@ -137,6 +166,6 @@ export async function exportPDF(params, results, chartContainer) {
     /* chart snapshot is best-effort */
   }
 
-  doc.save('wave-force-report.pdf');
+  doc.save('platform-report.pdf');
   return true;
 }

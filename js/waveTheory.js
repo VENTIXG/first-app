@@ -142,25 +142,32 @@ export function prepareWave(theory, H, T, h) {
 
 /**
  * Horizontal particle kinematics at elevation z (z = 0 at still water level,
- * z = -h at seabed) and time t, evaluated at x = 0.
- * Returns { u, dudt } — velocity and local acceleration.
+ * z = -h at seabed), horizontal position x, and time t.
+ *
+ * The wave propagates along +x, so the phase argument is theta = k*x - omega*t.
+ * Passing each body its own x is what produces the spatial phase shift between
+ * bodies in an array (and hence wave cancellation / amplification when the
+ * per-body forces are summed).
+ *
+ * Returns { u, dudt } — horizontal velocity and local acceleration.
  */
-export function kinematics(z, t, wp) {
+export function kinematics(z, t, wp, x = 0) {
   // hEff = min(h, 25/k): in deeper water the kinematics depend only on the
   // distance below the surface, and this cap keeps cosh/sinh finite. It is
   // the same cap stokesCoefficients() applies, so the two stay consistent.
   const { omega, k, hEff } = wp;
+  const theta = k * x - omega * t; // du/dt = A*omega*sin(theta) since dtheta/dt = -omega
 
   if (wp.theory === 'stokes5') {
-    // u = c * sum( n * D_n * cosh(n*k*(z+h)) * cos(n*omega*t) )
+    // u = c * sum( n * D_n * cosh(n*k*(z+h)) * cos(n*theta) )
     let u = 0;
     let dudt = 0;
     for (let n = 1; n <= 5; n++) {
       const Dn = wp.D[n - 1];
       if (Dn === 0) continue;
       const ch = Math.cosh(n * k * (z + hEff));
-      u += n * Dn * ch * Math.cos(n * omega * t);
-      dudt += n * Dn * ch * n * omega * Math.sin(n * omega * t);
+      u += n * Dn * ch * Math.cos(n * theta);
+      dudt += n * Dn * ch * n * omega * Math.sin(n * theta);
     }
     return { u: wp.c * u, dudt: wp.c * dudt };
   }
@@ -168,8 +175,8 @@ export function kinematics(z, t, wp) {
   // Airy (linear)
   const decay = Math.cosh(k * (z + hEff)) / Math.sinh(k * hEff);
   return {
-    u: wp.a * omega * decay * Math.cos(omega * t),
-    dudt: wp.a * omega * omega * decay * Math.sin(omega * t),
+    u: wp.a * omega * decay * Math.cos(theta),
+    dudt: wp.a * omega * omega * decay * Math.sin(theta),
   };
 }
 
@@ -188,20 +195,31 @@ export function surfaceElevation(t, wp, x = 0) {
 
 /**
  * Validity / breaking checks.
- *  - depth-limited breaking:  H/h > 0.78
- *  - steepness-limited breaking:  H/λ > 0.142·tanh(kh)  (Miche criterion)
+ *  - depth-limited breaking:     H/h > 0.78
+ *  - steepness (documentation):  H/λ > 0.14   (empirical global limit)
+ *  - steepness (Miche):          H/λ > 0.142·tanh(kh)  (depth-aware)
+ *
+ * `critical` fires on the documented limits (H/h > 0.78 or H/λ > 0.14) and
+ * drives the high-visibility UI error state.
  */
 export function breakingChecks(wp) {
   const { H, h, k, wavelength } = wp;
   const depthRatio = H / h;
   const steepness = H / wavelength;
   const micheLimit = 0.142 * Math.tanh(k * h);
+
+  const depthLimited = depthRatio > 0.78;
+  const steepLimited = steepness > 0.14;
+  const micheLimited = steepness > micheLimit;
+
   return {
     depthRatio,
-    depthLimited: depthRatio > 0.78,
+    depthLimited,
     steepness,
+    steepLimited,
     micheLimit,
-    steepnessLimited: steepness > micheLimit,
-    breaking: depthRatio > 0.78 || steepness > micheLimit,
+    micheLimited,
+    critical: depthLimited || steepLimited,
+    breaking: depthLimited || steepLimited || micheLimited,
   };
 }

@@ -173,16 +173,17 @@ export function kinematics(z, t, wp) {
   };
 }
 
-/** Free-surface elevation at x = 0 (for visualization). */
-export function surfaceElevation(t, wp) {
+/** Free-surface elevation at horizontal position x and time t. */
+export function surfaceElevation(t, wp, x = 0) {
+  const theta = wp.k * x - wp.omega * t;
   if (wp.theory === 'stokes5') {
     let eta = 0;
     for (let n = 1; n <= 5; n++) {
-      eta += wp.E[n - 1] * Math.cos(n * wp.omega * t);
+      eta += wp.E[n - 1] * Math.cos(n * theta);
     }
     return eta / wp.k;
   }
-  return wp.a * Math.cos(wp.omega * t);
+  return wp.a * Math.cos(theta);
 }
 
 /**

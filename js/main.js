@@ -195,6 +195,7 @@ function render(results) {
   }
   renderWarnings(results);
   renderForceChart($('#chart'), results.timeData);
+  viz?.update(results.wave, state.params);
 }
 
 function renderWarnings(results) {
@@ -241,6 +242,23 @@ function initTheme() {
     apply(!document.documentElement.classList.contains('dark'))
   );
 }
+
+// ---------------------------------------------------------------------------
+// 3D visualization — dynamic import so a three.js CDN failure degrades
+// gracefully instead of breaking the whole app.
+// ---------------------------------------------------------------------------
+
+let viz = null;
+import('./viz3d.js')
+  .then((m) => {
+    viz = m.initViz3d($('#viz3d'));
+    if (state.results) viz.update(state.results.wave, state.params);
+  })
+  .catch(() => {
+    $('#viz3d').innerHTML =
+      '<div class="flex h-full items-center justify-center text-sm text-neutral-400">' +
+      '3D view unavailable (three.js could not be loaded)</div>';
+  });
 
 // ---------------------------------------------------------------------------
 // Boot

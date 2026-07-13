@@ -1,6 +1,6 @@
-// Force time-series chart. Phase 1 ships a lightweight SVG renderer with a
-// crosshair + tooltip hover layer; Phase 3 swaps the internals for Plotly.js
-// behind this same renderForceChart() interface.
+// Force time-series chart. Uses Plotly.js (CDN) when available, with a
+// self-contained SVG renderer as offline fallback — both behind the same
+// renderForceChart() interface.
 //
 // Colors are read from CSS custom properties (--series-1..3, --chart-grid,
 // --chart-ink-muted) so the light/dark theme swap happens in CSS alone.
@@ -20,8 +20,64 @@ function cssVar(el, name) {
 }
 
 export function renderForceChart(container, timeData) {
-  container.innerHTML = '';
   if (!timeData?.length) return;
+  if (window.Plotly) {
+    renderPlotlyChart(container, timeData);
+  } else {
+    renderSvgChart(container, timeData);
+  }
+}
+
+/** Interactive Plotly time-series with a unified hover tooltip. */
+function renderPlotlyChart(container, timeData) {
+  if (!container.dataset.plotly) {
+    container.innerHTML = ''; // clear any SVG fallback render
+    container.dataset.plotly = '1';
+  }
+  const t = timeData.map((p) => p.t);
+  const traces = SERIES.map((s) => ({
+    x: t,
+    y: timeData.map((p) => p[s.key] / 1000),
+    name: s.label,
+    mode: 'lines',
+    line: { color: cssVar(container, s.varName), width: 2 },
+    hovertemplate: '%{y:.2f} kN<extra>' + s.label + '</extra>',
+  }));
+
+  const ink = cssVar(container, '--chart-ink-muted');
+  const grid = cssVar(container, '--chart-grid');
+  const layout = {
+    height: 320,
+    margin: { t: 16, r: 16, b: 42, l: 60 },
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    plot_bgcolor: 'rgba(0,0,0,0)',
+    font: { family: 'system-ui, -apple-system, sans-serif', size: 11.5, color: ink },
+    xaxis: {
+      title: { text: 'Time [s]' },
+      gridcolor: grid, zerolinecolor: grid, linecolor: grid,
+    },
+    yaxis: {
+      title: { text: 'Force [kN]' },
+      gridcolor: grid, linecolor: grid,
+      zerolinecolor: cssVar(container, '--chart-axis'), zerolinewidth: 1.5,
+    },
+    showlegend: false,
+    hovermode: 'x unified',
+    hoverlabel: {
+      bgcolor: cssVar(container, '--chart-tooltip-bg'),
+      font: { color: cssVar(container, '--chart-tooltip-ink'), size: 12 },
+      bordercolor: grid,
+    },
+  };
+  window.Plotly.react(container, traces, layout, {
+    responsive: true,
+    displayModeBar: false,
+  });
+}
+
+/** Offline fallback: dependency-free SVG chart with crosshair + tooltip. */
+function renderSvgChart(container, timeData) {
+  container.innerHTML = '';
 
   const width = container.clientWidth || 640;
   const height = 320;

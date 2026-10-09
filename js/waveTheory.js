@@ -29,7 +29,7 @@ export function solveDispersion(omega, h) {
 // deep-water limit.
 // ---------------------------------------------------------------------------
 
-function stokesCoefficients(kh) {
+export function stokesCoefficients(kh) {
   const x = Math.min(kh, 25);
   const c = Math.cosh(x);
   const s = Math.sinh(x);

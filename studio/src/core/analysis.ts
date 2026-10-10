@@ -78,7 +78,13 @@ export interface AnalysisSummary {
   links: BodyLink[];
   issues: Issue[];
   /** Present only when ok. Forces in N. */
-  global?: { peakTotal: number; peakDrag: number; peakInertia: number; peakWind: number; rms: number };
+  global?: { peakTotal: number; peakDrag: number; peakInertia: number; peakWind: number; rms: number; peakMoment: number };
+  /**
+   * Period-mean load of the analysed bodies (Morison current/drag mean + wind):
+   * Fx [N] and yaw moment Mz [N·m] about the origin. Excludes second-order
+   * wave drift, which this engine does not compute.
+   */
+  mean?: { Fx: number; Mz: number };
   bodies?: { bodyId: number; peakTotal: number; rms: number; Dlambda: number; KC: number; mfApplied: boolean }[];
   wavelength?: number;
   heave?: { applicable: boolean; Tn3: number | null; bandLow: number | null; bandHigh: number | null; potentialResonance: boolean; status: string } | null;
@@ -110,8 +116,19 @@ export function runAnalysis(project: Project): AnalysisSummary {
     issues,
     global: {
       peakTotal: r.global.peakTotal, peakDrag: r.global.peakDrag, peakInertia: r.global.peakInertia,
-      peakWind: r.global.peakWind, rms: r.global.rms,
+      peakWind: r.global.peakWind, rms: r.global.rms, peakMoment: r.global.peakMoment,
     },
+    mean: (() => {
+      // periodic history: drop the duplicated end sample
+      const avg = (series: Array<{ total: number }>) => series.slice(0, -1).reduce((a, p) => a + p.total, 0) / (series.length - 1);
+      let Fx = 0, Mz = 0;
+      for (const b of r.bodies as Array<{ y: number; timeData: Array<{ total: number }> }>) {
+        const f = avg(b.timeData);
+        Fx += f;
+        Mz += -b.y * f; // moment about z of an x-force acting at (x, y)
+      }
+      return { Fx, Mz };
+    })(),
     bodies: r.bodies.map((b: { id: number; peakTotal: number; rms: number; Dlambda: number; KC: number; mfApplied: boolean }) => ({
       bodyId: b.id, peakTotal: b.peakTotal, rms: b.rms, Dlambda: b.Dlambda, KC: b.KC, mfApplied: b.mfApplied,
     })),

@@ -28,7 +28,9 @@ test('invalid project files are rejected with ProjectError, never half-loaded', 
   const bad: Array<[string, (r: Record<string, any>) => unknown]> = [
     ['not JSON', () => '{nope'],
     ['wrong format', (r) => ({ ...r, format: 'other' })],
-    ['future schema', (r) => ({ ...r, schemaVersion: 2 })],
+    ['future schema', (r) => ({ ...r, schemaVersion: 3 })],
+    ['mooring line to a missing anchor', (r) => ({ ...r, mooring: { system: { depth: 100, lineTypes: [], anchors: [], fairleads: [], lines: [{ id: 'L1', name: 'x', anchorId: 'A', fairleadId: 'F', lineTypeId: 't', length: 10 }] } } })],
+    ['mooring negative length', (r) => ({ ...r, mooring: { system: { depth: 100, lineTypes: [], anchors: [], fairleads: [], lines: [], }, external: [0, 'x', 0] } })],
     ['duplicate id', (r) => { r.objects[1].id = r.objects[0].id; return r; }],
     ['prototype key as id', (r) => { r.objects[0].id = '__proto__'; return r; }],
     ['markup in id', (r) => { r.objects[0].id = '<img src=x>'; return r; }],
@@ -54,4 +56,12 @@ test('names are kept as plain text (markup is data, not code)', () => {
   const raw = clone(createDefaultProject()) as Record<string, any>;
   raw.objects[0].name = '<img src=x onerror=alert(1)>';
   assert.equal(parseProject(raw).objects[0].name, '<img src=x onerror=alert(1)>');
+});
+
+test('schema v1 files (before mooring) load as v2 without a mooring design', () => {
+  const v1 = { ...clone(createDefaultProject()), schemaVersion: 1 } as Record<string, any>;
+  delete v1.mooring;
+  const p = parseProject(v1);
+  assert.equal(p.schemaVersion, 2);
+  assert.equal(p.mooring, undefined);
 });

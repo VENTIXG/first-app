@@ -4,6 +4,7 @@
 // ProjectError so a bad file can never half-load.
 
 import { DEFAULT_ENVIRONMENT, parseEnvironment } from '../../../js/state.js';
+import { parseMooring, type MooringProject } from './mooring/schema.ts';
 import {
   PROJECT_FORMAT, PROJECT_SCHEMA_VERSION,
   type Environment, type MeshData, type ObjectSource, type Project, type SceneObject, type Shape,
@@ -148,7 +149,8 @@ export function parseProject(input: unknown): Project {
     }
   }
   if (!isObj(data) || data.format !== PROJECT_FORMAT) throw new ProjectError('Not an Offshore Studio project file.');
-  if (data.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+  // v1 (no mooring) is migrated by reading it as v2 without a mooring design
+  if (data.schemaVersion !== 1 && data.schemaVersion !== PROJECT_SCHEMA_VERSION) {
     throw new ProjectError(`Unsupported project schema version ${String(data.schemaVersion)}.`);
   }
 
@@ -195,6 +197,15 @@ export function parseProject(input: unknown): Project {
     };
   });
 
+  let mooring: MooringProject | undefined;
+  if (data.mooring !== undefined) {
+    try {
+      mooring = parseMooring(data.mooring);
+    } catch (err) {
+      throw new ProjectError(`Mooring: ${(err as Error).message}`);
+    }
+  }
+
   return {
     format: PROJECT_FORMAT,
     schemaVersion: PROJECT_SCHEMA_VERSION,
@@ -202,5 +213,6 @@ export function parseProject(input: unknown): Project {
     environment,
     objects,
     meshes,
+    ...(mooring ? { mooring } : {}),
   };
 }

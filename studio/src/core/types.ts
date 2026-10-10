@@ -5,6 +5,7 @@
 // Rhino world frame, so imported geometry is used without an axis swap.
 
 import type { DEFAULT_ENVIRONMENT } from '../../../js/state.js';
+import type { MooringProject } from './mooring/schema.ts';
 
 export type Vec3 = [number, number, number];
 
@@ -76,7 +77,8 @@ export interface MeshData {
 }
 
 export const PROJECT_FORMAT = 'offshore-studio/project';
-export const PROJECT_SCHEMA_VERSION = 1;
+/** v2 adds the optional mooring design; v1 files are migrated on load (no mooring). */
+export const PROJECT_SCHEMA_VERSION = 2;
 
 export interface Project {
   format: typeof PROJECT_FORMAT;
@@ -85,6 +87,8 @@ export interface Project {
   environment: Environment;
   objects: SceneObject[];
   meshes: Record<string, MeshData>;
+  /** Mooring design (absent until the user creates one). */
+  mooring?: MooringProject;
 }
 
 export type Severity = 'error' | 'warning' | 'info';

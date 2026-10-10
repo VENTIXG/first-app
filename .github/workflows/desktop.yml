@@ -2,8 +2,8 @@ name: Desktop app
 
 # Builds the installers on each operating system, then runs the desktop test
 # suite against the packaged app on that same system. Installers are kept as
-# workflow artifacts; pushing a tag v* also attaches them to a DRAFT release
-# (not public until someone publishes it).
+# workflow artifacts; pushing a tag v* also publishes them as a GitHub
+# Release with direct download links.
 
 on:
   push:
@@ -84,7 +84,7 @@ jobs:
           compression-level: 0
 
   release:
-    name: Draft release
+    name: Release
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-latest
@@ -95,10 +95,10 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: Create a draft release with the installers
+      - name: Publish a release with the installers
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --draft \
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" \
             --title "Offshore Studio $GITHUB_REF_NAME" \
             --notes "Desktop installers for Windows, macOS and Linux. Not code-signed: see docs/DESKTOP.md for installation notes."

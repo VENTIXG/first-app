@@ -14,9 +14,9 @@ is tested there before it is kept:
   → the most recent green run → **Artifacts**. Download the
   one for your system and unzip it (GitHub wraps artifacts in a zip). You need
   to be signed in to GitHub, and artifacts are kept for 30 days.
-- **Releases:** when a version tag (for example `v0.6.0`) is pushed, the same
-  installers are attached to a draft release, which can then be published
-  under **Releases**.
+- **Releases (recommended):** <https://github.com/VENTIXG/first-app/releases/latest>
+  — public direct downloads, no sign-in. Each version tag (for example
+  `v0.6.0`) publishes the tested installers there.
 
 | System | File | Notes |
 |---|---|---|

@@ -28,6 +28,16 @@ export function renderForceChart(container, timeData) {
   }
 }
 
+/** Remove any chart (Plotly or SVG) and show a plain-text message instead. */
+export function clearChart(container, message) {
+  if (window.Plotly && container.dataset.plotly) window.Plotly.purge(container);
+  delete container.dataset.plotly;
+  const note = document.createElement('div');
+  note.className = 'flex h-40 items-center justify-center text-sm text-neutral-500 dark:text-neutral-400';
+  note.textContent = message;
+  container.replaceChildren(note);
+}
+
 /** Interactive Plotly time-series with a unified hover tooltip. */
 function renderPlotlyChart(container, timeData) {
   if (!container.dataset.plotly) {
@@ -102,7 +112,9 @@ function renderSvgChart(container, timeData) {
   const step = ([1, 2, 5, 10].find((m) => rawStep / mag <= m) || 10) * mag;
   const decimals = Math.max(0, -Math.floor(Math.log10(step)));
   const ticks = [];
-  for (let v = Math.ceil(yMin / 1000 / step) * step; v <= yMax / 1000 + 1e-9; v += step) {
+  for (let i = Math.ceil(yMin / 1000 / step); i * step <= yMax / 1000 + 1e-9; i++) {
+    // integer tick index avoids accumulated round-off (e.g. -1e-14 printing as "-0")
+    const v = i === 0 ? 0 : i * step;
     ticks.push({ v: v * 1000, label: v.toLocaleString('en-US', {
       minimumFractionDigits: decimals, maximumFractionDigits: decimals }) });
   }

@@ -7,6 +7,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import type { Project, SceneObject } from '../core/types.ts';
+import type { MooringSummary } from '../core/mooring/run.ts';
+import { fairleadPosition, type Pose } from '../core/mooring/system.ts';
 import { createFramePacer } from '../../../js/framePacer.js';
 
 export interface ViewportCallbacks {
@@ -24,7 +26,20 @@ const COLORS = {
   mesh: 0x8a96a3,
   selected: 0x3d6fa8,
   wave: 0xf2c94c,
+  anchor: 0xc9a227,
+  fairlead: 0xdfe9f3,
+  slack: 0x6f8396,
 };
+
+/** Colour for a tension ratio r = utilisation × intact safety factor (1 = at the allowed limit). */
+export function tensionColor(r: number): THREE.Color {
+  const c = new THREE.Color();
+  if (!Number.isFinite(r)) return c.setHex(COLORS.slack);
+  const t = Math.min(Math.max(r, 0), 1.2);
+  // green (0) -> yellow (0.75) -> red (>= 1)
+  if (t <= 0.75) return c.setRGB(0.25 + (0.95 - 0.25) * (t / 0.75), 0.8, 0.35 - 0.15 * (t / 0.75));
+  return c.setRGB(0.95, 0.8 - 0.6 * Math.min((t - 0.75) / 0.25, 1), 0.2);
+}
 
 interface Entry {
   mesh: THREE.Mesh;
@@ -38,6 +53,8 @@ export class Viewport {
   private orbit: OrbitControls | null = null;
   private gizmo: TransformControls | null = null;
   private objects = new THREE.Group();
+  private mooring = new THREE.Group();
+  private mooringKey: unknown[] = [];
   private entries = new Map<string, Entry>();
   private water: THREE.Mesh;
   private seabed: THREE.Mesh;
@@ -89,7 +106,7 @@ export class Viewport {
     const sun = new THREE.DirectionalLight(0xffffff, 1.4);
     sun.position.set(60, -90, 140);
     this.scene.add(sun);
-    this.scene.add(this.water, this.seabed, this.objects);
+    this.scene.add(this.water, this.seabed, this.objects, this.mooring);
     const wave = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 0.05), 20, COLORS.wave, 3, 2);
     wave.name = 'wave-direction';
     this.scene.add(wave);
@@ -177,10 +194,106 @@ export class Viewport {
     }
   }
 
+  /**
+   * Draw the mooring: lines at their equilibrium shape coloured by tension,
+   * anchors and fairleads. Without results, anchors and fairleads are drawn
+   * at the neutral position and the lines as straight chords.
+   */
+  updateMooring(project: Project, result: MooringSummary | null, selectedId: string | null): void {
+    if (!this.renderer) return;
+    const m = project.mooring;
+    const key = [m, result, selectedId];
+    if (key.every((v, i) => v === this.mooringKey[i])) return;
+    this.mooringKey = key;
+    this.clearMooring();
+    if (!m) { this.requestRender(); return; }
+    const sys = m.system;
+    const extent = Math.max(50, ...sys.anchors.map((a) => Math.hypot(a.x, a.y)));
+    const radius = Math.max(0.35, extent * 0.0035);
+    const pose: Pose = result?.pose ?? [0, 0, 0, 0, 0, 0];
+    const types = new Map(sys.lineTypes.map((t) => [t.id, t]));
+    const drawn = new Set<string>();
+    const intactSF = m.criteria.intactSF;
+    for (const l of result?.lines ?? []) {
+      const points = l.shape.map((p) => new THREE.Vector3(p[0], p[1], p[2]));
+      const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal');
+      const segments = Math.max(16, points.length * 2);
+      const geometry = new THREE.TubeGeometry(curve, segments, radius, 8, false);
+      // colour each ring by the tension at the nearest shape point
+      const colors: number[] = [];
+      for (let i = 0; i <= segments; i++) {
+        const k = Math.round((i / segments) * (l.tensions.length - 1));
+        const c = l.regime === 'slack' ? new THREE.Color(COLORS.slack) : tensionColor((l.tensions[k] / l.MBL) * intactSF);
+        for (let j = 0; j <= 8; j++) colors.push(c.r, c.g, c.b);
+      }
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 });
+      if (selectedId === `mooring:${l.id}`) mat.emissive.setHex(COLORS.selected);
+      const tube = new THREE.Mesh(geometry, mat);
+      tube.userData.id = `mooring:${l.id}`;
+      tube.name = `mooring-line-${l.id}`;
+      this.mooring.add(tube);
+      drawn.add(l.id);
+    }
+    const anchors = new Map(sys.anchors.map((a) => [a.id, a]));
+    const fairleads = new Map(sys.fairleads.map((f) => [f.id, f]));
+    for (const line of sys.lines) {
+      if (drawn.has(line.id)) continue;
+      const a = anchors.get(line.anchorId), f = fairleads.get(line.fairleadId);
+      if (!a || !f || !types.has(line.lineTypeId)) continue;
+      const fp = fairleadPosition(f, pose);
+      const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(a.x, a.y, a.z), new THREE.Vector3(...fp)]);
+      const mat = new THREE.LineDashedMaterial({ color: line.failed ? COLORS.slack : COLORS.fairlead, dashSize: radius * 8, gapSize: radius * 6 });
+      const chord = new THREE.Line(geometry, mat);
+      chord.computeLineDistances();
+      chord.userData.id = `mooring:${line.id}`;
+      chord.name = `mooring-chord-${line.id}`;
+      this.mooring.add(chord);
+    }
+    for (const a of sys.anchors) {
+      const box = new THREE.Mesh(new THREE.BoxGeometry(radius * 8, radius * 8, radius * 4), new THREE.MeshStandardMaterial({ color: COLORS.anchor }));
+      box.position.set(a.x, a.y, a.z + radius * 2);
+      if (selectedId === `mooring:${a.id}`) (box.material as THREE.MeshStandardMaterial).emissive.setHex(COLORS.selected);
+      box.userData.id = `mooring:${a.id}`;
+      box.name = `mooring-anchor-${a.id}`;
+      this.mooring.add(box);
+    }
+    for (const f of sys.fairleads) {
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(radius * 3, 16, 8), new THREE.MeshStandardMaterial({ color: COLORS.fairlead }));
+      ball.position.set(...fairleadPosition(f, pose));
+      if (selectedId === `mooring:${f.id}`) (ball.material as THREE.MeshStandardMaterial).emissive.setHex(COLORS.selected);
+      ball.userData.id = `mooring:${f.id}`;
+      ball.name = `mooring-fairlead-${f.id}`;
+      this.mooring.add(ball);
+    }
+    this.updateEnvironmentPlanes(project.environment.h);
+    this.requestRender();
+  }
+
+  /** Client coordinates of a mooring item's centre (line, anchor or fairlead id), for tests. */
+  mooringScreenPoint(itemId: string): { x: number; y: number } | null {
+    const target = this.mooring.children.find((c) => c.userData.id === `mooring:${itemId}`);
+    if (!target) return null;
+    if (target instanceof THREE.Mesh && target.geometry instanceof THREE.TubeGeometry) {
+      return this.screenPoint(target.geometry.parameters.path.getPointAt(0.5));
+    }
+    return this.screenPoint(new THREE.Box3().setFromObject(target).getCenter(new THREE.Vector3()));
+  }
+
+  private clearMooring(): void {
+    for (const c of [...this.mooring.children]) {
+      this.mooring.remove(c);
+      const m = c as THREE.Mesh;
+      m.geometry?.dispose();
+      (m.material as THREE.Material | undefined)?.dispose();
+    }
+  }
+
   /** Fit the camera to the visible objects. */
   frameAll(): void {
     const box = new THREE.Box3();
     for (const { mesh } of this.entries.values()) if (mesh.visible) box.expandByObject(mesh);
+    if (this.mooring.children.length) box.expandByObject(this.mooring);
     if (box.isEmpty() || !this.orbit) return;
     const centre = box.getCenter(new THREE.Vector3());
     const radius = Math.max(box.getSize(new THREE.Vector3()).length() / 2, 10);
@@ -233,6 +346,7 @@ export class Viewport {
     this.gizmo?.dispose();
     this.orbit?.dispose();
     for (const id of [...this.entries.keys()]) this.remove(id);
+    this.clearMooring();
     for (const m of [this.water, this.seabed]) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); }
     this.grid?.geometry.dispose();
     this.renderer.dispose();
@@ -291,6 +405,7 @@ export class Viewport {
   private updateEnvironmentPlanes(depth: number): void {
     const box = new THREE.Box3();
     for (const { mesh } of this.entries.values()) box.expandByObject(mesh);
+    if (this.mooring.children.length) box.expandByObject(this.mooring);
     const extent = box.isEmpty() ? 100 : Math.max(Math.abs(box.min.x), Math.abs(box.max.x), Math.abs(box.min.y), Math.abs(box.max.y));
     const size = Math.max(200, Math.ceil((2.5 * extent) / 50) * 50);
     this.water.scale.set(size, size, 1);
@@ -299,7 +414,7 @@ export class Viewport {
     this.seabed.position.set(0, 0, -depth);
     if (size !== this.gridSize) {
       if (this.grid) { this.scene.remove(this.grid); this.grid.geometry.dispose(); }
-      this.grid = new THREE.GridHelper(size, size / 10, 0x5b7a99, 0x2c4157);
+      this.grid = new THREE.GridHelper(size, size > 500 ? size / 50 : size / 10, 0x5b7a99, 0x2c4157);
       this.grid.rotation.x = Math.PI / 2; // GridHelper lies in xz; ours is the xy water plane
       this.grid.position.z = 0.02;
       this.scene.add(this.grid);
@@ -338,7 +453,9 @@ export class Viewport {
     const ndc = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
     const ray = new THREE.Raycaster();
     ray.setFromCamera(ndc, this.camera);
-    const hit = ray.intersectObjects(this.objects.children.filter((c) => c.visible), false)[0];
+    ray.params.Line = { threshold: 2 };
+    const pickable = [...this.objects.children.filter((c) => c.visible), ...this.mooring.children];
+    const hit = ray.intersectObjects(pickable, false)[0];
     this.cb.onSelect((hit?.object.userData.id as string | undefined) ?? null);
   };
 }

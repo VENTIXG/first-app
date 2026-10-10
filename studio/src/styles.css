@@ -142,3 +142,31 @@ h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: 
   .viewport { height: 60vh; order: -1; }
   .panel.left, .panel.right { border: 0; border-top: 1px solid var(--line); }
 }
+
+/* workspaces */
+.workspaces { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: -2px 0 14px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.workspaces button { border: 0; border-radius: 0; background: var(--bg); padding: 6px 8px; color: var(--muted); }
+.workspaces button + button { border-left: 1px solid var(--line); }
+.workspaces button[aria-selected='true'] { background: var(--panel-2); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+h3.sub { font-size: 12px; font-weight: 600; margin: 14px 0 6px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+h3.sub:first-child { margin-top: 0; }
+
+/* mooring */
+.kind-line { background: linear-gradient(90deg, #6fcf97, #f2c94c, #eb5757); height: 4px; margin-top: 7px; border-radius: 2px; }
+.kind-anchor { background: #c9a227; }
+.mooring-items .meta { font-variant-numeric: tabular-nums; }
+.status { margin: 0 0 10px; padding: 6px 8px; border-radius: var(--radius); border: 1px solid var(--line); }
+.status-pass { border-color: #2f6b47; background: #12261b; }
+.status-fail { border-color: #6b2b2b; background: #2a1414; }
+td.pass { color: #6fcf97; }
+td.fail { color: var(--error); font-weight: 600; }
+.results[aria-busy='true'] #mooring-lines, .results[aria-busy='true'] #mooring-cases { opacity: 0.5; transition: opacity 0.15s; }
+.chart { margin: 12px 0 0; }
+.chart svg { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); }
+.chart text { font-size: 9px; fill: var(--muted); }
+.chart .grid { stroke: #1b2a3a; }
+.chart .limit { stroke: var(--error); stroke-dasharray: 4 3; }
+.chart .eq { stroke: var(--muted); stroke-dasharray: 2 2; }
+.legend { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 0; margin: 6px 0 0; font-size: 11px; color: var(--muted); }
+.legend span { display: inline-block; width: 12px; height: 3px; margin-right: 4px; vertical-align: middle; }
+.legend .limit-key { background: repeating-linear-gradient(90deg, var(--error) 0 4px, transparent 4px 7px); }

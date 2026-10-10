@@ -2,8 +2,9 @@ name: Desktop app
 
 # Builds the installers on each operating system, then runs the desktop test
 # suite against the packaged app on that same system. Installers are kept as
-# workflow artifacts; pushing a tag v* also publishes them as a GitHub
-# Release with direct download links.
+# workflow artifacts. When the version in package.json has no release yet,
+# the tested installers are published as GitHub Release v<version> (tagging
+# the built commit), with direct download links.
 
 on:
   push:
@@ -85,20 +86,35 @@ jobs:
 
   release:
     name: Release
-    if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+      - name: Version
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v$(node -p "require('./package.json').version")"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"; echo "$TAG is already released"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/download-artifact@v4
+        if: steps.v.outputs.exists == 'false'
         with:
           path: dist
           merge-multiple: true
       - name: Publish a release with the installers
+        if: steps.v.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.v.outputs.tag }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" \
-            --title "Offshore Studio $GITHUB_REF_NAME" \
+          gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Offshore Studio $TAG" \
             --notes "Desktop installers for Windows, macOS and Linux. Not code-signed: see docs/DESKTOP.md for installation notes."

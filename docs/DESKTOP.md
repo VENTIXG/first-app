@@ -15,8 +15,8 @@ is tested there before it is kept:
   one for your system and unzip it (GitHub wraps artifacts in a zip). You need
   to be signed in to GitHub, and artifacts are kept for 30 days.
 - **Releases (recommended):** <https://github.com/VENTIXG/first-app/releases/latest>
-  — public direct downloads, no sign-in. Each version tag (for example
-  `v0.6.0`) publishes the tested installers there.
+  — public direct downloads, no sign-in. When the version in
+  `package.json` changes, the tested installers are published there.
 
 | System | File | Notes |
 |---|---|---|

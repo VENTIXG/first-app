@@ -145,6 +145,29 @@ Tolerances are relative unless stated. "Test" names the file in `tests/unit`
 | Error states, recovery, display-unit scaling of ν | B | e2e `app` |
 | Visual baselines (tiles, SVG chart, light/dark) | C (host-specific, not in CI) | e2e `visual` |
 
+### Studio (Phase 2–3 foundation)
+
+Executed 2026-10-10: `tests/unit/studio` 32 / 32 pass; `tests/e2e/studio.spec.js` 8 / 8 pass.
+
+| Quantity / behaviour | Method | Reference | Tolerance | Status | Test |
+|---|---|---|---|---|---|
+| Studio analysis = classic engine | default scene vs `computePlatform` on the classic default | identity | exact | V-A | `studio/analysis` |
+| Scene → engine mapping | cylinder z-range → draft/freeboard; sphere centre → draft | definition | exact | V-A | `studio/analysis` |
+| 3×3 symmetric eigen-decomposition | A v = λ v, orthonormality, 50 random matrices | identity | 1e-10 / 1e-12 | V-A | `studio/fit` |
+| Cylinder fit | exact samples, random axis/radius/height, mm-scale coordinates | analytical | 1e-9 | V-A | `studio/fit` |
+| Sphere fit | exact samples, 40 random spheres; ellipsoid rejected | analytical | 1e-9 | V-A | `studio/fit` |
+| Display tessellation | closed, consistently oriented; volume = inscribed prism | analytical | 1e-12 | V-A | `studio/fit` |
+| Rhino units → metres | mm and ft files | definition (exact factors) | 1e-12 | V-A | `studio/rhinoImport` |
+| Rhino recognition | Brep and Extrusion cylinders, sphere: dimensions recovered | generated file | 1e-9 m | V-A | `studio/rhinoImport` |
+| Vertical tolerance | 0.5 mrad snapped and reported; 2 mrad display-only | requirement | — | B | `studio/rhinoImport` |
+| Imported columns analyse like parametric ones | same peak | identity | 1e-9 | V-A | `studio/rhinoImport`, e2e |
+| Files without units refused until stated; not-a-3dm refused | — | requirement | — | B | `studio/rhinoImport`, e2e |
+| Every object imported or listed as skipped, with reason | — | requirement | — | B | `studio/rhinoImport`, e2e |
+| Project validation (17 malformed cases), round trip | — | requirement | exact | B | `studio/project`, e2e |
+| Undo/redo, no-op edits, bounded history | — | requirement | — | B | `studio/history`, e2e |
+| Markup in names from files stays text | — | requirement | — | B | e2e |
+| Files saved by Rhino 7/8 (rather than rhino3dm) | — | — | — | N | — |
+
 ### Not verified or not implemented
 
 | Area | Status |
@@ -155,4 +178,4 @@ Tolerances are relative unless stated. "Test" names the file in `tests/unit`
 | Irregular / directional seas, wave–current interaction | N |
 | Hydrodynamic interaction between bodies | N |
 | Mooring, structural response | N |
-| CAD (Rhino) import | N (Phase 2–3) |
+| CAD import beyond the Rhino primitives listed above (STEP, IGES, STL, OBJ, glTF; general Breps) | N |

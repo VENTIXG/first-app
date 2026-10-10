@@ -79,8 +79,8 @@ Node.js 22 or later.
 - `npm run test:e2e`: **19 tests, 19 pass** (17 functional + 2 visual).
 - Coverage by module, method, reference and tolerance: `VALIDATION_MATRIX.md`.
 - CI (`.github/workflows/ci.yml`) runs the unit tests, a CSS-build check and the
-  browser tests except the host-specific visual baselines. **It had not yet run on
-  GitHub when this report was written.**
+  browser tests except the host-specific visual baselines. Its first run on GitHub
+  (run 38008948565, commit `6048205`) **passed**.
 
 ## 6. Benchmarks
 

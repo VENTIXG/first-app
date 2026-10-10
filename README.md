@@ -34,6 +34,39 @@ export say that they are unavailable. Styling is a prebuilt local file
 frequency-sweep study (thesis method). It works fully offline and has
 received the Phase 1 fixes D-04, D-05 and D-19.
 
+## Offshore Studio (preview)
+
+`studio/` is the first increment of the planned studio: an editable 3-D scene
+with Rhino `.3dm` import, analysed with the same verified engine. It is a
+Vite + TypeScript + React app and needs a build step:
+
+```bash
+npm run studio           # development server (prints the URL)
+npm run build:studio     # production build in studio/dist/
+npm run serve            # then open http://localhost:8000/studio/dist/index.html
+```
+
+What it does:
+
+- Scene of vertical cylinders and spheres (z up, z = 0 is the still-water level,
+  waves travel in +x): add, select in the 3-D view or the list, move in plan with
+  the gizmo, edit dimensions and elevations, rename, hide, duplicate, delete;
+  undo/redo for every edit (Ctrl+Z, Ctrl+Shift+Z).
+- Rhino import (rhino3dm.js, in a Web Worker): units converted to metres (files
+  without units are refused until you state them), layers, names, visibility.
+  Closed capped cylinders and spheres are recognised by a least-squares fit that
+  must reproduce the surface within tolerance; vertical ones become editable,
+  analysable objects (not analysed until you include them). Inclined cylinders,
+  meshes and Breps with stored render meshes are shown for reference only.
+  Everything else is listed in the import report with the reason it was skipped.
+- Loads for the objects you include, computed in a Web Worker by the Phase 1
+  engine; the default scene gives exactly the classic calculator's default result.
+- Projects saved and opened as JSON files, validated on load.
+
+Not yet: other CAD formats, rotation/scaling, multi-selection, mesh hydrostatics,
+docking layout, display units other than SI. Details and limitations:
+[`docs/PHASE2_3_FOUNDATION.md`](docs/PHASE2_3_FOUNDATION.md).
+
 ## What it computes
 
 | Quantity | Model |
@@ -67,10 +100,12 @@ list of assumptions and limitations is shown in the app and in
 ## Tests
 
 ```bash
-npm test                                   # 82 unit / verification tests (node:test)
+npm test                                   # 114 unit / verification tests (physics + studio core, node:test)
+npm run typecheck                          # TypeScript check of the studio
 npx playwright install chromium            # once; or set PW_CHROMIUM_PATH=/path/to/chromium
-npm run test:e2e                           # 19 browser tests (Playwright, runs offline)
+npm run test:e2e                           # builds the studio, then 27 browser tests (runs offline)
 npm run bench                              # engine timings
+npm run bench:studio                       # Rhino import timings
 npm run build:css                          # rebuild css/app.css after changing Tailwind classes
 ```
 
@@ -80,8 +115,8 @@ free-surface boundary-condition residuals for Stokes 5th, published tables
 quadrature and time step, plus a 300-case robustness sweep. The browser
 suite covers the main workflow, error states, HTML-injection attempts,
 scenario round trips and migration, exports, offline operation and visual
-baselines (`@visual`, host-specific, excluded from CI). CI runs on every push
-(`.github/workflows/ci.yml`).
+baselines (`@visual`, host-specific, excluded from CI), and the studio on its
+production build. CI runs on every push (`.github/workflows/ci.yml`).
 
 ## Project layout
 
@@ -103,10 +138,16 @@ js/
   viz3d.js            three.js scene (illustrative; bodies drawn fixed)
   export.js           CSV, JSON results record, paginated PDF
   scenarios.js        Named scenarios in localStorage
+studio/               Offshore Studio (Vite + TypeScript + React)
+  src/core/           Pure TypeScript: project model, undo/redo, Rhino import, fits, scene analysis
+  src/viewport/       three.js viewport (graphics only)
+  src/ui/, App.tsx    React panels
+  src/workers/        Analysis and .3dm parsing workers
 standalone.html       Earlier offline version with the array frequency study
 legacy/               Deprecated first version — see legacy/README.md
 docs/                 Architecture, audit, bug-fix plan, roadmap, validation matrix, phase reports
 tests/unit, tests/e2e Automated tests; tests/helpers holds independent reference implementations
+                      and the generator of the .3dm test files
 scripts/              Static dev server and benchmark
 ```
 
@@ -120,6 +161,7 @@ Physics modules import nothing from the UI and run unchanged in Node.
 - [`docs/VALIDATION_MATRIX.md`](docs/VALIDATION_MATRIX.md): what is verified, how, and to what tolerance
 - [`docs/TARGET_ARCHITECTURE.md`](docs/TARGET_ARCHITECTURE.md), [`docs/DEVELOPMENT_ROADMAP.md`](docs/DEVELOPMENT_ROADMAP.md)
 - [`docs/PHASE1_REPORT.md`](docs/PHASE1_REPORT.md): Phase 1 summary, test results and benchmarks
+- [`docs/PHASE2_3_FOUNDATION.md`](docs/PHASE2_3_FOUNDATION.md): the studio increment, its tests and limitations
 - [`methodologia-morison.md`](methodologia-morison.md): the thesis method used by the array study
 
 ## References

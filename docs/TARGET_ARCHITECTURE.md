@@ -35,6 +35,14 @@ unless the roadmap marks it done.
 - Build: Vite emits static assets — the deploy model (static hosting) is unchanged
   for browser-only features.
 
+**As built in the Phase 2–3 foundation** (`PHASE2_3_FOUNDATION.md`): Vite +
+TypeScript + React in `studio/`, without react-three-fiber (an imperative
+three.js viewport class keeps graphics separate from React state) and without a
+docking library yet. The physics is imported from the verified `js/` modules
+rather than ported, and the TypeScript core is tested with `node:test` through
+Node 22 type stripping instead of Vitest. Analysis and `.3dm` parsing run in Web
+Workers. The port of `js/` to TypeScript remains planned.
+
 ### 2.2 Layering
 
 ```

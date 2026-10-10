@@ -12,9 +12,8 @@ fixes per `BUG_FIX_PLAN.md`; browser E2E tests; updated README.
 
 **Acceptance:**
 - every defect in `ENGINEERING_AUDIT.md` fixed or explicitly deferred with a reason — **met** (all fixed);
-- all unit and E2E tests pass, no `todo` left for a fixed defect — **met** locally
-  (82 unit, 19 browser); the CI workflow is added but had not yet run on GitHub
-  when this was written;
+- all unit and E2E tests pass, no `todo` left for a fixed defect — **met**
+  (82 unit, 19 browser; first GitHub CI run passed);
 - Stokes 5th BC residuals scale as λ⁶; Morison matches closed forms to 1e-6 — **met** (1e-12);
 - invalid geometry and impossible waves rejected with explanations — **met**;
 - existing features (multi-body, charts, 3-D, scenarios, CSV/PDF, dark mode) still work — **met** (browser suite).
@@ -25,7 +24,7 @@ fixes per `BUG_FIX_PLAN.md`; browser E2E tests; updated README.
 - vendoring the CDN libraries / subresource integrity: depends on the Phase 2 build;
 - Web Worker execution: Phase 2 (instantaneous-surface integration takes ≈ 0.4–0.5 s for 50 bodies on the main thread).
 
-## Phase 2–3 foundation *(in progress)*
+## Phase 2–3 foundation *(first increment complete; see `PHASE2_3_FOUNDATION.md`)*
 
 Scope agreed for the first increment, built in the target stack so it is not
 thrown away later, but kept independent of the classic calculator:
@@ -43,6 +42,15 @@ thrown away later, but kept independent of the classic calculator:
 
 Everything beyond this (docking layout, STL/OBJ/glTF, rotate/scale gizmos,
 geometry verification of meshes, mesh hydrostatics) stays in Phases 2–5.
+
+All items above are delivered and tested. Suggested next increments, in order:
+1. tests with `.3dm` files saved by Rhino 7/8 (render meshes, user data, blocks);
+2. recognition of split-face cylinders and of cones/tapered columns (analysing a
+   tapered column needs a new node builder; the strip integration already handles a
+   radius that varies with depth, as used for spheres);
+3. mesh verification (closed, manifold, orientation) and mesh hydrostatics (Phase 5);
+4. multi-selection, rotation, grouping, display units, autosave;
+5. porting `js/` to TypeScript with the existing tests (target architecture §2.1).
 
 ## Phase 2 — Application architecture
 

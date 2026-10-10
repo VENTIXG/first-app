@@ -2,8 +2,8 @@
 
 First increment of the application architecture (Phase 2) and CAD integration
 (Phase 3): an editable 3-D scene with basic Rhino `.3dm` import, analysed with
-the verified Phase 1 engine. Commits `864aef0`, `6283f59`, `32c4c17` and the
-documentation commit that follows them.
+the verified Phase 1 engine. Commits `864aef0` (dependencies), `6283f59` (core),
+`32c4c17` (application), `d876084` (documentation) and `a886444` (test race fix).
 
 ## 1. What is delivered
 
@@ -89,8 +89,14 @@ npm run bench:studio
   random cases in millimetre coordinates (recovery to 1e-9 relative), display
   tessellation (closed, outward, exact prism volume to 1e-12), and the importer
   on files generated with rhino3dm.
-- First CI run on GitHub (Phase 1 close-out commit) **passed**; the studio
-  commits run the extended workflow (type check, studio build, studio browser tests).
+- GitHub CI (unit tests, type check, studio build, CSS check, browser tests except
+  `@visual`): run 1 (Phase 1 close-out) passed. Runs 2 and 3 failed on one studio
+  test that read the peak before the worker had returned the new result (a race in
+  the test; the application result was correct). Commit `a886444` fixed the test and
+  made the panel dim stale results while recomputing; **run 4 passed**.
+- CI warns that `actions/checkout@v4` and `actions/setup-node@v4` target Node 20,
+  which GitHub now runs on Node 24; harmless today, to be updated with the next
+  workflow change.
 
 ## 6. Benchmarks
 
@@ -133,6 +139,8 @@ worker 24 KB, import worker 98 KB plus the rhino3dm reader (143 KB JS, 2.6 MB WA
   table shows which object each number refers to, and issues link to the object.
 - The WebGL viewport has no pixel-level regression test (GPU-dependent); its behaviour
   (selection, gizmo) is covered by browser tests.
+- Results are recomputed after every edit (debounced, in a worker); while a
+  recomputation is pending the previous numbers are shown dimmed.
 
 ## 8. Existing functionality
 

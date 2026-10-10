@@ -235,26 +235,35 @@ function stokesVertical(n, k, z, hEff) {
 }
 
 /**
+ * Harmonic amplitudes of the horizontal velocity at elevation z, separating
+ * the depth dependence from the phase theta = kx - omega t:
+ *   u = sum U[n-1] cos(n theta),   du/dt = sum n omega U[n-1] sin(n theta).
+ * One harmonic for Airy (overflow-free ratio for any kh), five for Stokes.
+ * Fixed integration nodes can therefore be evaluated once per analysis.
+ */
+export function velocityAmplitudes(z, wp) {
+  if (wp.theory === 'stokes5') {
+    const U = new Array(5);
+    for (let n = 1; n <= 5; n++) U[n - 1] = wp.c * n * wp.D[n - 1] * stokesVertical(n, wp.k, z, wp.hEff);
+    return U;
+  }
+  return [wp.a * wp.omega * coshOverSinh(wp.k, z, wp.h)];
+}
+
+/**
  * Horizontal particle velocity and local acceleration at (x, z, t).
- * Airy uses the overflow-free ratio for any kh. The wave travels in +x with
- * theta = kx - omega t, so du/dt = A omega sin(theta) for u = A cos(theta).
+ * The wave travels in +x with theta = kx - omega t, so du/dt = A omega
+ * sin(theta) for u = A cos(theta).
  */
 export function kinematics(z, t, wp, x = 0) {
-  const { omega, k } = wp;
-  const theta = k * x - omega * t;
-
-  if (wp.theory === 'stokes5') {
-    let u = 0, dudt = 0;
-    for (let n = 1; n <= 5; n++) {
-      const a = n * wp.D[n - 1] * stokesVertical(n, k, z, wp.hEff);
-      u += a * Math.cos(n * theta);
-      dudt += a * n * omega * Math.sin(n * theta);
-    }
-    return { u: wp.c * u, dudt: wp.c * dudt };
+  const theta = wp.k * x - wp.omega * t;
+  const U = velocityAmplitudes(z, wp);
+  let u = 0, dudt = 0;
+  for (let n = 1; n <= U.length; n++) {
+    u += U[n - 1] * Math.cos(n * theta);
+    dudt += U[n - 1] * n * wp.omega * Math.sin(n * theta);
   }
-
-  const amp = wp.a * omega * coshOverSinh(k, z, wp.h);
-  return { u: amp * Math.cos(theta), dudt: amp * omega * Math.sin(theta) };
+  return { u, dudt };
 }
 
 /**
@@ -263,19 +272,14 @@ export function kinematics(z, t, wp, x = 0) {
  * gain_n * a_n * sin(n theta + phase_n).
  */
 export function accelerationFiltered(z, t, wp, x, filter) {
-  const { omega, k } = wp;
-  const theta = k * x - omega * t;
-  if (wp.theory === 'stokes5') {
-    let dudt = 0;
-    for (let n = 1; n <= 5; n++) {
-      const f = filter[n - 1] || filter[filter.length - 1];
-      const a = n * wp.D[n - 1] * stokesVertical(n, k, z, wp.hEff);
-      dudt += f.gain * a * n * omega * Math.sin(n * theta + f.phase);
-    }
-    return wp.c * dudt;
+  const theta = wp.k * x - wp.omega * t;
+  const U = velocityAmplitudes(z, wp);
+  let dudt = 0;
+  for (let n = 1; n <= U.length; n++) {
+    const f = filter[n - 1] || filter[filter.length - 1];
+    dudt += f.gain * U[n - 1] * n * wp.omega * Math.sin(n * theta + f.phase);
   }
-  const f = filter[0];
-  return f.gain * wp.a * omega * omega * coshOverSinh(k, z, wp.h) * Math.sin(theta + f.phase);
+  return dudt;
 }
 
 /** Free-surface elevation at horizontal position x and time t. */

@@ -19,7 +19,7 @@
 // ok = false and contains no force numbers.
 
 import {
-  prepareWave, kinematics, accelerationFiltered, surfaceElevation, wheelerZ, g,
+  prepareWave, kinematics, velocityAmplitudes, surfaceElevation, wheelerZ, g,
 } from './waveTheory.js';
 import { compositeNodes, goldenMax } from './quadrature.js';
 import { macCamyFuchsFilter } from './diffraction.js';
@@ -188,28 +188,46 @@ export function computePlatform(environment, bodies, numericsIn = {}) {
   // 3. per-body preparation
   const surfaceMode = env.integrateTo === 'surface';
   const harmonics = wp.theory === 'stokes5' ? 5 : 1;
+  // Depth factors are separated from the phase (velocityAmplitudes), so nodes
+  // fixed at the SWL limit are evaluated once rather than at every time step.
+  const nodeData = (nodes, eta) => nodes.map((nd) => ({
+    wD: nd.wD,
+    wA: nd.wA,
+    U: velocityAmplitudes(surfaceMode && wp.theory === 'airy' ? wheelerZ(nd.z, eta, env.h) : nd.z, wp),
+    uc: currentVelocity(nd.z, env),
+  }));
   const prepared = bodies.map((b) => {
     const R = bodyRadius(b);
     const mf = env.useMacCamy && b.type === 'cylinder' ? macCamyFuchsFilter(wp.k, R, harmonics) : null;
-    const staticNodes = surfaceMode ? null : bodyNodes(b, env, 0, numerics);
+    const staticNodes = surfaceMode ? null : nodeData(bodyNodes(b, env, 0, numerics), 0);
     return { body: b, R, mf, staticNodes, wind: windForce(b, env) };
   });
 
+  const cosN = new Float64Array(harmonics);
+  const accN = new Float64Array(harmonics);
   const forceOnBody = (pb, t) => {
     const b = pb.body;
+    const theta = wp.k * b.x - wp.omega * t;
     let nodes = pb.staticNodes;
-    let eta = 0;
     if (surfaceMode) {
-      eta = surfaceElevation(t, wp, b.x);
-      nodes = bodyNodes(b, env, eta, numerics);
+      const eta = surfaceElevation(t, wp, b.x);
+      nodes = nodeData(bodyNodes(b, env, eta, numerics), eta);
+    }
+    // phase factors: u = sum U_n cos(n theta); du/dt (with the optional
+    // MacCamy–Fuchs gain and phase lead per harmonic) = sum U_n accN_n
+    for (let n = 1; n <= harmonics; n++) {
+      const f = pb.mf ? (pb.mf[n - 1] || pb.mf[pb.mf.length - 1]) : null;
+      cosN[n - 1] = Math.cos(n * theta);
+      accN[n - 1] = n * wp.omega * (f ? f.gain * Math.sin(n * theta + f.phase) : Math.sin(n * theta));
     }
     let drag = 0, inertia = 0;
     for (let i = 0; i < nodes.length; i++) {
       const nd = nodes[i];
-      const zk = surfaceMode && wp.theory === 'airy' ? wheelerZ(nd.z, eta, env.h) : nd.z;
-      const kin = kinematics(zk, t, wp, b.x);
-      const V = kin.u + currentVelocity(nd.z, env);
-      const acc = pb.mf ? accelerationFiltered(zk, t, wp, b.x, pb.mf) : kin.dudt;
+      let V = nd.uc, acc = 0;
+      for (let n = 0; n < harmonics; n++) {
+        V += nd.U[n] * cosN[n];
+        acc += nd.U[n] * accN[n];
+      }
       drag += 0.5 * env.rho * env.Cd * nd.wD * Math.abs(V) * V;
       inertia += env.rho * env.Cm * nd.wA * acc;
     }

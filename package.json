@@ -12,7 +12,8 @@
     "test:e2e": "playwright test",
     "test:all": "npm test && npm run test:e2e",
     "build:css": "tailwindcss -c tailwind.config.cjs -i css/tailwind.input.css -o css/app.css --minify",
-    "serve": "node scripts/serve.mjs"
+    "serve": "node scripts/serve.mjs",
+    "bench": "node scripts/bench.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.56.0",

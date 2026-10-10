@@ -74,6 +74,30 @@ export class ScenarioError extends Error {
 const isFiniteNumber = (v) => typeof v === 'number' && Number.isFinite(v);
 
 /**
+ * Type-check a stored environment against DEFAULT_ENVIRONMENT. Missing keys take
+ * the default, unknown keys are ignored, a wrongly typed value throws
+ * ScenarioError. Physical ranges are checked later by validation.js.
+ */
+export function parseEnvironment(srcEnv) {
+  const src = srcEnv && typeof srcEnv === 'object' ? srcEnv : {};
+  const environment = { ...DEFAULT_ENVIRONMENT };
+  for (const key of Object.keys(DEFAULT_ENVIRONMENT)) {
+    if (!(key in src)) continue;
+    const v = src[key];
+    const def = DEFAULT_ENVIRONMENT[key];
+    if (key in ENUMS) {
+      if (!ENUMS[key].includes(v)) throw new ScenarioError(`Invalid value for ${key}.`);
+    } else if (typeof def === 'boolean') {
+      if (typeof v !== 'boolean') throw new ScenarioError(`${key} must be true/false.`);
+    } else if (!isFiniteNumber(v)) {
+      throw new ScenarioError(`${key} must be a finite number.`);
+    }
+    environment[key] = v;
+  }
+  return environment;
+}
+
+/**
  * Validate and migrate a snapshot. Returns { environment, bodies } or throws
  * ScenarioError. Version 0 (no schemaVersion): global `h_exp` becomes each
  * cylinder's freeboard.
@@ -85,20 +109,7 @@ export function parseSnapshot(snapshot) {
     throw new ScenarioError(`Unsupported scenario schema version ${version}.`);
   }
   const srcEnv = snapshot.environment && typeof snapshot.environment === 'object' ? snapshot.environment : {};
-  const environment = { ...DEFAULT_ENVIRONMENT };
-  for (const key of Object.keys(DEFAULT_ENVIRONMENT)) {
-    if (!(key in srcEnv)) continue;
-    const v = srcEnv[key];
-    const def = DEFAULT_ENVIRONMENT[key];
-    if (key in ENUMS) {
-      if (!ENUMS[key].includes(v)) throw new ScenarioError(`Invalid value for ${key}.`);
-    } else if (typeof def === 'boolean') {
-      if (typeof v !== 'boolean') throw new ScenarioError(`${key} must be true/false.`);
-    } else if (!isFiniteNumber(v)) {
-      throw new ScenarioError(`${key} must be a finite number.`);
-    }
-    environment[key] = v;
-  }
+  const environment = parseEnvironment(srcEnv);
 
   const srcBodies = snapshot.bodies;
   if (!Array.isArray(srcBodies) || srcBodies.length === 0 || srcBodies.length > MAX_BODIES) {

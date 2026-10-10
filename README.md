@@ -10,9 +10,10 @@ offshore engineering studio (see [`docs/DEVELOPMENT_ROADMAP.md`](docs/DEVELOPMEN
 
 Offshore Studio is available as a desktop app for **Windows, macOS and Linux**
 that works offline: the 3-D Studio, the load calculator and the array study in
-one window. Get the installer from the latest green run of the **Desktop app**
-workflow (Actions tab → Artifacts) or from Releases. Installation notes,
-including the unsigned-app warnings, are in [`docs/DESKTOP.md`](docs/DESKTOP.md).
+one window. Get the installer from the latest green run of the
+[**Desktop app** workflow](https://github.com/VENTIXG/first-app/actions/workflows/desktop.yml)
+(open the run → *Artifacts*; sign-in required) or from Releases. Installation
+notes, including the unsigned-app warnings, are in [`docs/DESKTOP.md`](docs/DESKTOP.md).
 
 > **Status.** The physics is verified against analytical solutions and
 > reference tables (see [`docs/VALIDATION_MATRIX.md`](docs/VALIDATION_MATRIX.md)).

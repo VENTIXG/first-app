@@ -9,8 +9,9 @@ and stores nothing outside the files you save yourself.
 Installers are built by GitHub Actions on each operating system, and each one
 is tested there before it is kept:
 
-- **Latest build:** open the repository's **Actions** tab → workflow
-  **Desktop app** → the most recent green run → **Artifacts**. Download the
+- **Latest build:** open the
+  [Desktop app workflow](https://github.com/VENTIXG/first-app/actions/workflows/desktop.yml)
+  → the most recent green run → **Artifacts**. Download the
   one for your system and unzip it (GitHub wraps artifacts in a zip). You need
   to be signed in to GitHub, and artifacts are kept for 30 days.
 - **Releases:** when a version tag (for example `v0.6.0`) is pushed, the same
@@ -25,6 +26,21 @@ is tested there before it is kept:
 | macOS 11+ Intel | `Offshore-Studio-<version>-mac-x64.dmg` | |
 | Linux (Ubuntu/Debian) | `Offshore-Studio-<version>-linux-amd64.deb` | recommended on Ubuntu 24.04 |
 | Linux (other) | `Offshore-Studio-<version>-linux-x86_64.AppImage` | single file, no installation |
+
+## What is tested
+
+For every build, the desktop test suite (`tests/electron`, 7 tests) runs against
+the packaged app on GitHub-hosted runners: Windows (x64), macOS (Apple
+Silicon) and Ubuntu (x64, virtual display). It starts the real executable and
+checks the home page, the calculator (worker computation, Plotly chart, 3-D view,
+PDF and CSV saved to disk), the studio (Rhino import through WebAssembly), the
+array study, the menus and the unsaved-changes prompt, persistence of scenarios
+and theme across a restart, and that links leave the app.
+
+Not covered by automated tests: the installers' own setup screens (the tests
+run the unpacked app the installer contains), the Intel macOS build (built on an
+Apple Silicon runner, not run), and real graphics cards (the runners render
+WebGL in software).
 
 ## Installing: the "unknown publisher" warnings
 

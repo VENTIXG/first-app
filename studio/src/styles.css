@@ -59,7 +59,8 @@ input[type='text'] { text-align: right; font-variant-numeric: tabular-nums; }
 .project-name { color: var(--muted); }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .actions .sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
-.actions .classic { margin-left: 8px; }
+.actions .navlink { color: var(--muted); text-decoration: none; padding: 4px 4px; }
+.actions .navlink:hover { color: var(--text); text-decoration: underline; }
 
 .main { display: grid; grid-template-columns: 290px minmax(0, 1fr) 350px; min-height: 0; }
 .panel { overflow-y: auto; background: var(--panel); padding: 10px 12px 24px; }

@@ -63,6 +63,9 @@
     padding-bottom: 18px; border-bottom: 1px solid var(--line); margin-bottom: 22px;
   }
   .mast-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+  .app-nav { display: flex; gap: 16px; margin-left: auto; font-size: 14px; }
+  .app-nav a { color: inherit; opacity: 0.75; text-decoration: none; }
+  .app-nav a:hover { opacity: 1; text-decoration: underline; }
   .title-block h1 { margin: 0; font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 650; letter-spacing: -0.02em; text-wrap: balance; }
   .title-block .eyebrow {
     font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.18em;
@@ -259,6 +262,11 @@
         <h1>Wave Force Laboratory</h1>
         <p>Strip-integrated Morison and exact MacCamy&ndash;Fuchs diffraction on an array of floating cylinders and submerged spheres, with spatial phasing, Re-dependent coefficients, and a real-time 3-D view.</p>
       </div>
+      <nav class="app-nav" aria-label="Offshore Studio tools">
+        <a href="./home.html">Home</a>
+        <a href="./index.html">Load calculator</a>
+        <a href="./studio/dist/index.html">3-D Studio</a>
+      </nav>
       <button class="theme-toggle" id="themeToggle" aria-label="Toggle color theme">
         <span id="themeIcon">◐</span><span id="themeText">Theme</span>
       </button>

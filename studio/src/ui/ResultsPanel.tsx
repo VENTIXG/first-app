@@ -64,7 +64,7 @@ export function ResultsPanel({ summary, running, failure, onSelectObject }: Prop
         </ul>
       ) : null}
       <p className="small muted">
-        Engine {summary.engineVersion}, the same verified engine as the <a href="../../index.html">classic calculator</a>:
+        Engine {summary.engineVersion}, the same verified engine as the <a href="../../index.html">load calculator</a>:
         fixed bodies, regular unidirectional waves in +x, no hydrodynamic interaction. Bodies are numbered in scene order.
         Heave is a screening estimate, not a motion analysis.
       </p>

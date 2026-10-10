@@ -326,7 +326,10 @@ export function App() {
           <button type="button" id="undo" onClick={doUndo} disabled={!uLabel} title={uLabel ? `Undo ${uLabel} (Ctrl+Z)` : 'Nothing to undo'}>Undo</button>
           <button type="button" id="redo" onClick={doRedo} disabled={!rLabel} title={rLabel ? `Redo ${rLabel} (Ctrl+Shift+Z)` : 'Nothing to redo'}>Redo</button>
           <button type="button" onClick={() => viewport.current?.frameAll()} title="Frame all (F)">Frame</button>
-          <a className="classic" href="../../index.html">Classic calculator</a>
+          <span className="sep" />
+          <a className="navlink" href="../../home.html">Home</a>
+          <a className="navlink" href="../../index.html">Load calculator</a>
+          <a className="navlink" href="../../standalone.html">Array study</a>
         </nav>
       </header>
 

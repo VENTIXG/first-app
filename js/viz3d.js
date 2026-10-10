@@ -5,10 +5,10 @@
 // one-period history). Nothing here is illustrative motion: bodies do not heave
 // because no motion response is computed.
 //
-// three.js is loaded as an ES module from the CDN; main.js imports this file
-// dynamically so a CDN failure degrades gracefully.
+// three.js is the bundled ES module in vendor/; main.js imports this file
+// dynamically so a missing or failing WebGL/three.js degrades gracefully.
 
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import * as THREE from '../vendor/three-0.160.0.module.js';
 import { surfaceElevation } from './waveTheory.js';
 import { bodyRadius, bodyTopZ, sphereCenterZ } from './geometry.js';
 

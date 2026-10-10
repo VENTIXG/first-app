@@ -10,7 +10,7 @@
  *          warnings, model assumptions and a chart snapshot.
  *
  * Dependencies:
- * - jsPDF (loaded from CDN as window.jspdf.jsPDF) — PDF only
+ * - jsPDF (vendor/, exposed as window.jspdf.jsPDF) — PDF only
  * - charts.js for chartSnapshot()
  *
  * @module export

@@ -1,4 +1,4 @@
-import { test, expect, openApp, setEnv, setBodyField } from './fixtures.js';
+import { test, expect, openApp, setEnv, setBodyField, externalRequests } from './fixtures.js';
 
 test.describe('core workflow', () => {
   test('boots with libraries, computes, and renders every panel without errors', async ({ page, issues }) => {
@@ -11,6 +11,7 @@ test.describe('core workflow', () => {
     expect(await page.locator('#assumptions-list li').count()).toBeGreaterThan(5);
     expect(issues.page).toEqual([]);
     expect(issues.console).toEqual([]);
+    expect(externalRequests(page)).toEqual([]); // fully self-contained: no CDN, no network
   });
 
   test('default platform shows the heave-resonance screening warning (T = 9 s)', async ({ page }) => {

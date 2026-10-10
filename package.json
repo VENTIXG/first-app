@@ -17,7 +17,8 @@
     "studio": "vite --config studio/vite.config.ts",
     "build:studio": "vite build --config studio/vite.config.ts",
     "typecheck": "tsc -p studio/tsconfig.json",
-    "bench:studio": "node scripts/bench-studio.mjs"
+    "bench:studio": "node scripts/bench-studio.mjs",
+    "vendor": "node scripts/vendor.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.56.0",

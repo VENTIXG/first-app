@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { test, expect, openApp } from './fixtures.js';
+import { test, expect, openApp, externalRequests } from './fixtures.js';
 
 async function download(page, selector) {
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30_000 }), page.click(selector)]);
@@ -62,10 +62,19 @@ test.describe('exports', () => {
 });
 
 test.describe('offline / missing libraries', () => {
-  test('physics, styling, SVG chart and tables work with every CDN blocked; optional features explain themselves', async ({ page, issues }) => {
-    await openApp(page, { offline: true });
-    // static CSS is local: the header must be styled (sticky) without any CDN
+  test('everything works with no network: bundled 3-D view, Plotly chart and PDF; no external request', async ({ page, issues }) => {
+    await openApp(page, { plotly: true });
     expect(await page.locator('header').evaluate((e) => getComputedStyle(e).position)).toBe('sticky');
+    await expect(page.locator('#chart .plotly')).toHaveCount(1);
+    await expect(page.locator('#viz3d canvas')).toHaveCount(1);
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#export-pdf')]);
+    expect(dl.suggestedFilename()).toMatch(/\.pdf$/);
+    expect(externalRequests(page)).toEqual([]);
+    expect(issues.page).toEqual([]);
+  });
+
+  test('if bundled libraries are missing, physics, tables and the SVG chart still work and the rest explains itself', async ({ page, issues }) => {
+    await openApp(page, { missing: ['three', 'jspdf', 'plotly'] });
     await expect(page.locator('#chart svg path').first()).toBeVisible();
     await expect(page.locator('#viz3d')).toContainText('3-D view unavailable');
     await page.click('#export-pdf');

@@ -1,4 +1,4 @@
-// Force time-series chart. Uses Plotly.js (CDN) when available, with a
+// Force time-series chart. Uses Plotly.js (vendor/) when available, with a
 // self-contained SVG renderer as offline fallback — both behind the same
 // renderForceChart() interface.
 //

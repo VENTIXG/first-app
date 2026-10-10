@@ -521,13 +521,13 @@ function initTools() {
     const { label } = currentSeries(state.results);
     const res = await exportPDF(state.environment, state.bodies, state.results, $('#chart'), label);
     if (res.ok) notify(`PDF exported (${res.pages} page${res.pages > 1 ? 's' : ''}).`);
-    else if (res.reason === 'missing-library') notify('PDF export unavailable: the jsPDF library could not be loaded (offline?).', 'error');
+    else if (res.reason === 'missing-library') notify('PDF export unavailable: the bundled jsPDF library could not be loaded (vendor/jspdf-4.2.1.umd.min.js).', 'error');
     else notify(`PDF export failed: ${res.message}`, 'error');
   });
 }
 
 // ---------------------------------------------------------------------------
-// 3-D view — dynamic import so a three.js CDN failure degrades gracefully.
+// 3-D view — dynamic import so a three.js or WebGL failure degrades gracefully.
 // ---------------------------------------------------------------------------
 
 let viz = null;
@@ -540,7 +540,7 @@ import('./viz3d.js')
   .catch(() => {
     $('#viz3d').replaceChildren(el('div', {
       class: 'flex h-full items-center justify-center text-sm text-neutral-500',
-      text: '3-D view unavailable (three.js could not be loaded).',
+      text: '3-D view unavailable (three.js or WebGL could not be started).',
     }));
   });
 

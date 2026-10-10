@@ -1,38 +1,46 @@
-// Shared E2E fixture: serves the CDN libraries from node_modules (pinned to the
-// same versions the app requests) or blocks all external hosts ("offline").
-// Collects console errors and uncaught page errors for assertions.
+// Shared E2E fixture. The app bundles its libraries in vendor/ and must never
+// contact another host: every request to a non-local host is aborted and
+// recorded (issues.external). Options:
+//   plotly   – serve vendor Plotly (default false: the built-in SVG chart is
+//              used, which is faster and pixel-stable for visual tests)
+//   missing  – vendor libraries to make unavailable ('three' | 'jspdf' | 'plotly'),
+//              to test graceful degradation
+// Also collects console errors and uncaught page errors.
 
 import { test as base, expect } from '@playwright/test';
-import fs from 'node:fs';
-import path from 'node:path';
 
-const nm = (p) => fs.readFileSync(path.join(process.cwd(), 'node_modules', p));
-const LIBS = [
-  ['https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js', 'three/build/three.module.js'],
-  ['https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js', 'jspdf/dist/jspdf.umd.min.js'],
-  ['https://cdn.plot.ly/plotly-2.35.2.min.js', 'plotly.js-dist-min/plotly.min.js'],
-];
+const VENDOR = {
+  three: /\/vendor\/three-[\d.]+\.module\.js$/,
+  jspdf: /\/vendor\/jspdf-[\d.]+\.umd\.min\.js$/,
+  plotly: /\/vendor\/plotly-[\d.]+\.min\.js$/,
+};
+
+const externalByPage = new WeakMap();
+
+/** URLs of requests to other hosts that the page attempted (all are blocked). */
+export const externalRequests = (page) => externalByPage.get(page) ?? [];
 
 /**
  * @param {import('@playwright/test').Page} page
- * @param {{ offline?: boolean, plotly?: boolean }} opts
+ * @param {{ plotly?: boolean, missing?: Array<'three'|'jspdf'|'plotly'> }} opts
  */
-export async function routeLibraries(page, { offline = false, plotly = false } = {}) {
-  await page.route(/^https?:\/\/(?!localhost)/, (route) => {
-    if (offline) return route.abort();
-    const url = route.request().url();
-    const lib = LIBS.find(([u]) => url === u);
-    if (!lib) return route.abort();
-    if (!plotly && lib[1].startsWith('plotly')) return route.abort();
-    return route.fulfill({ contentType: 'application/javascript', body: nm(lib[1]) });
+export async function routeLibraries(page, { plotly = false, missing = [] } = {}) {
+  const external = [];
+  externalByPage.set(page, external);
+  await page.route(/^https?:\/\/(?!localhost[:/])/, (route) => {
+    external.push(route.request().url());
+    return route.abort();
   });
+  const blocked = new Set(missing);
+  if (!plotly) blocked.add('plotly');
+  for (const name of blocked) await page.route(VENDOR[name], (route) => route.abort());
 }
 
 export const test = base.extend({
   issues: async ({ page }, use) => {
     const issues = { console: [], page: [] };
     page.on('console', (m) => {
-      // Aborted optional CDN requests are expected in offline/no-Plotly mode.
+      // Deliberately blocked vendor files (e.g. Plotly by default) log a load error.
       if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) issues.console.push(m.text());
     });
     page.on('pageerror', (e) => issues.page.push(String(e)));

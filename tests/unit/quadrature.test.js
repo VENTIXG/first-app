@@ -22,7 +22,7 @@ test('weights are positive and sum to 2', () => {
   }
 });
 
-test('composite rule integrates smooth transcendental functions to 1e-13', () => {
+test('composite rule integrates smooth transcendental functions (exp: 1e-12 absolute; cosh: 1e-9 relative)', () => {
   assert.ok(Math.abs(integrate(Math.exp, -2, 3) - (Math.exp(3) - Math.exp(-2))) < 1e-12);
   assert.ok(Math.abs(integrate((z) => Math.cosh(0.3 * (z + 40)), -25, 0) -
     (Math.sinh(0.3 * 40) - Math.sinh(0.3 * 15)) / 0.3) < 1e-9 * Math.sinh(12));

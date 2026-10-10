@@ -20,7 +20,7 @@ test('agree with integral representations on both sides of the series/asymptotic
   }
 });
 
-test('Wronskian J1 Y0 - J0 Y1 = 2/(pi x) holds to 1e-12 relative', () => {
+test('Wronskian J1 Y0 - J0 Y1 = 2/(pi x) holds to 1e-10 relative', () => {
   for (const x of [0.01, 0.7, 3, 9, 12, 13, 30, 100]) {
     const W = besselJ1(x) * besselY0(x) - besselJ0(x) * besselY1(x);
     assert.ok(Math.abs(W - 2 / (Math.PI * x)) * (Math.PI * x / 2) < 1e-10, `x=${x}: ${W}`);

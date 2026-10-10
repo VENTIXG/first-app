@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Unit and verification tests
+        run: npm test
+      - name: Static CSS is up to date
+        run: |
+          npm run build:css
+          git diff --exit-code -- css/app.css
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Browser tests (visual baselines are host-specific and run locally)
+        run: npx playwright test --grep-invert @visual

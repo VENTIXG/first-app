@@ -5,17 +5,44 @@ instructions, executed test results, unresolved issues, unsupported features,
 benchmark results, and confirmation that existing modules still work.
 A phase is not "done" until its acceptance criteria pass in CI.
 
-## Phase 1 — Audit, correct and harden *(current)*
+## Phase 1 — Audit, correct and harden *(complete; see `PHASE1_REPORT.md`)*
 
 **Deliverables:** engineering documents (this folder); automated test suite;
 fixes per `BUG_FIX_PLAN.md`; browser E2E tests; updated README.
 
 **Acceptance:**
-- every defect in `ENGINEERING_AUDIT.md` fixed or explicitly deferred with a reason;
-- all unit and E2E tests pass, no `todo` left for a fixed defect;
-- Stokes 5th BC residuals scale as λ⁶; Morison matches closed forms to 1e-6;
-- invalid geometry and impossible waves rejected with explanations;
-- existing features (multi-body, charts, 3-D, scenarios, CSV/PDF, dark mode) still work.
+- every defect in `ENGINEERING_AUDIT.md` fixed or explicitly deferred with a reason — **met** (all fixed);
+- all unit and E2E tests pass, no `todo` left for a fixed defect — **met** locally
+  (82 unit, 19 browser); the CI workflow is added but had not yet run on GitHub
+  when this was written;
+- Stokes 5th BC residuals scale as λ⁶; Morison matches closed forms to 1e-6 — **met** (1e-12);
+- invalid geometry and impossible waves rejected with explanations — **met**;
+- existing features (multi-body, charts, 3-D, scenarios, CSV/PDF, dark mode) still work — **met** (browser suite).
+
+**Deferred from Phase 1, with reasons:**
+- display-unit configuration beyond the viscosity field (needs the project/settings model of Phase 2);
+- wave–current interaction (Doppler shift): a modelling extension, Phase 6;
+- vendoring the CDN libraries / subresource integrity: depends on the Phase 2 build;
+- Web Worker execution: Phase 2 (instantaneous-surface integration takes ≈ 0.4–0.5 s for 50 bodies on the main thread).
+
+## Phase 2–3 foundation *(in progress)*
+
+Scope agreed for the first increment, built in the target stack so it is not
+thrown away later, but kept independent of the classic calculator:
+
+- `studio/`: Vite + TypeScript + React app; physics imported from the verified
+  `js/` modules (no second copy of the physics).
+- Project document v1 (SI units, versioned, validated on load) and a
+  command history with undo/redo.
+- Editable 3-D scene: parametric cylinders and spheres; select, move in plan,
+  edit dimensions, rename, hide, delete; outliner and inspector.
+- Basic Rhino `.3dm` import (rhino3dm.js): unit conversion, layers, names, IDs;
+  meshes displayed; cylinders and spheres recognised and offered as analysis
+  bodies; everything skipped is listed with the reason.
+- Analysis of the scene's analysis bodies with the Phase 1 engine in a Web Worker.
+
+Everything beyond this (docking layout, STL/OBJ/glTF, rotate/scale gizmos,
+geometry verification of meshes, mesh hydrostatics) stays in Phases 2–5.
 
 ## Phase 2 — Application architecture
 

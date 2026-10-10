@@ -58,7 +58,48 @@ such changes are listed in the changelog section at the end, never applied silen
 - The thesis 3-slice sphere model stays the default sphere model (user-specified method).
 - No wave–current interaction (Doppler) — documented limitation L-03, roadmap Phase 6.
 
+## Status
+
+All defects D-01 … D-19 and A-01 … A-13 are fixed; no `todo` test remains.
+
+| Commit | Content |
+|---|---|
+| `e2e63f9` | Test harness and baseline characterization tests (defects registered as `todo`) |
+| `498bf22` | Engineering documents |
+| `1fd610a` | Physics: D-01 … D-19 (engine, wave theory, diffraction, geometry, validation, heave, `standalone.html`) |
+| `c8d1b0b` | Tooling: static CSS (A-09), dev server, pinned dev dependencies |
+| `838ae86` | Application: A-01 … A-08, A-10, A-11, D-14, D-15 |
+| `63ce92e` | Browser tests |
+| `d94577e` | Engine speed-up with identical results (fixed nodes evaluated once) |
+| *(this commit)* | README (A-12), `legacy/README.md` (A-13), CI, documentation of results |
+
 ## Changelog of result-affecting fixes
 
-Filled in as fixes land — see the "Status" section of `VALIDATION_MATRIX.md` and the
-Phase 1 summary in `DEVELOPMENT_ROADMAP.md`.
+Measured with the baseline engine (`e2e63f9`) and the Phase 1 engine on the
+same inputs (H = 4 m, T = 9 s, h = 40 m, U_c = 0.8 m/s power-law current,
+wind 20 m/s, C_d = 1, C_m = 2, MacCamy–Fuchs on, integration to SWL, unless
+stated). Global peak is the peak base shear including wind.
+
+| Case | Quantity | Before | After | Cause |
+|---|---|---|---|---|
+| Default platform (2 × D 6 m, draft 20 m, 60 m apart, Airy) | global peak | 261.04 kN | 262.55 kN | D-03 (exact MF on inertia only, drag no longer scaled), D-11 (Gauss–Legendre + peak refinement), D-12 |
+| | peak inertia / drag (summed) | 45.59 / 175.95 kN | 46.55 / 176.58 kN | D-03, D-11 |
+| | wind | 39.53 kN | 39.42 kN | D-12: exact profile integral over each body's freeboard (15 m) |
+| | heave T₃ | 12.69 s | 9.25 s | D-06: A33 (4/3)ρR³ instead of ρ∇; **T = 9 s is now flagged as a potential heave resonance** |
+| Same, Stokes 5th | global peak | 286.19 kN | 289.83 kN | D-01, D-03 (per-harmonic MF), D-11 |
+| Single cylinder D 20 m, draft 20 m, T = 7 s (ka ≈ 0.82) | global peak | 8968.06 kN | 8643.11 kN | D-03 |
+| | peak inertia / drag | 8795.34 / 512.56 kN | 8334.32 / 598.04 kN | D-03: the empirical factor reduced the drag as well |
+| Single sphere R 5 m, draft 5 m | global peak | 537.14 kN | 516.92 kN | D-12 wind (below), D-11 |
+| | wind | 32.94 kN | 6.43 kN | D-12: the global 15 m "exposed height" was applied to a sphere whose top is 5 m above SWL |
+
+Other changes visible to users:
+
+- **Results withheld instead of shown** for impossible or out-of-validity inputs:
+  draft > depth, sphere draft > 2R, overlapping bodies, non-finite or negative
+  inputs, depth- or steepness-limited breaking, Stokes 5th not converged or
+  Ursell number > 40 (D-02, D-07, D-08, D-17, D-18).
+- `standalone.html`: the MacCamy–Fuchs force in the array study now has the
+  correct phase (D-04), so its combined peaks change whenever D/λ > 0.2.
+- Reynolds numbers are about 16 % lower (ν 1.0e-6 → 1.19e-6 m²/s, D-13).
+- Engine speed-up `d94577e`: no numerical change (all 1e-12 checks unchanged,
+  default peak identical to the last digit).

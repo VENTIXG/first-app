@@ -106,6 +106,11 @@ const RESULT_TILES = [
       : `${((1 - r.arrayFactor) * 100).toFixed(0)}% below the in-phase sum`),
   },
   {
+    id: 'moment', label: 'Peak overturning moment',
+    fmt: (r) => `${(r.global.peakMoment / 1e6).toFixed(2)} MN·m`,
+    sub: () => 'about the seabed, incl. wind',
+  },
+  {
     id: 'heave', label: 'Heave period T₃ (screening)',
     fmt: (r) => (r.heave.applicable ? `${r.heave.Tn3.toFixed(2)} s` : 'n/a'),
     sub: (r) => (!r.heave.applicable ? 'no waterplane area'

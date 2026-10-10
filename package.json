@@ -21,7 +21,8 @@
     "vendor": "node scripts/vendor.mjs",
     "app": "npm run build:studio && electron .",
     "dist": "npm run build:studio && electron-builder --publish never",
-    "test:app": "playwright test -c playwright.electron.config.js"
+    "test:app": "playwright test -c playwright.electron.config.js",
+    "start": "npm run build:studio && node scripts/serve.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.56.0",

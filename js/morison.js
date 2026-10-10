@@ -31,7 +31,7 @@ import {
 } from './validation.js';
 import { heaveScreening } from './hydrostatics.js';
 
-export const ENGINE_VERSION = '1.0.0';
+export const ENGINE_VERSION = '1.1.0';
 export const DEFAULT_NUMERICS = Object.freeze({ timeSamples: 200, panels: 6, order: 8 });
 
 const Z0 = 0.05; // seabed roughness length for the logarithmic profile [m]
@@ -122,26 +122,43 @@ function bodyNodes(body, env, zTop, numerics) {
 // Wind: steady drag on the exposed part of each body, V(z) = Vr (z/zr)^beta.
 // ---------------------------------------------------------------------------
 
-export function windForce(body, env) {
+/**
+ * Steady wind load on the exposed part of a body: force [N] and its moment
+ * about the still-water level, ∫ q(z) z dz [N·m] (lever arm above SWL).
+ */
+export function windLoad(body, env) {
   const top = bodyTopZ(body);
-  if (!(top > 0) || env.V_wind <= 0) return 0;
+  if (!(top > 0) || env.V_wind <= 0) return { force: 0, momentSWL: 0 };
   const b = env.windBeta;
   const p = 2 * b + 1;
   const k = 0.5 * env.rho_air * env.Cd_air * env.V_wind ** 2 / env.windRef ** (2 * b);
   if (body.type === 'cylinder') {
-    // exact: ∫0^f D z^(2b) dz = D f^p / p
-    return (k * body.diameter * top ** p) / p;
+    // exact: ∫0^f D z^(2b) dz = D f^p / p and ∫0^f D z^(2b+1) dz = D f^(p+1) / (p+1)
+    return { force: (k * body.diameter * top ** p) / p, momentSWL: (k * body.diameter * top ** (p + 1)) / (p + 1) };
   }
-  // sphere cap above SWL: ∫0^top w(z) z^(2b) dz with u = z^p (removes the z=0 singularity)
   const R = body.radius, zc = sphereCenterZ(body);
   const { pos, wt } = compositeNodes(0, top ** p, 32, 8);
-  let s = 0;
+  let sF = 0, sM = 0;
   for (let i = 0; i < pos.length; i++) {
     const z = Math.pow(pos[i], 1 / p);
     const dz = z - zc;
-    s += wt[i] * 2 * Math.sqrt(Math.max(R * R - dz * dz, 0));
+    const w = wt[i] * 2 * Math.sqrt(Math.max(R * R - dz * dz, 0));
+    sF += w;
+    sM += w * z;
   }
-  return (k * s) / p;
+  return { force: (k * sF) / p, momentSWL: (k * sM) / p };
+}
+
+/**
+ * Moment of a horizontal (x) load about a horizontal y-axis at elevation zRef,
+ * given its moment about the seabed (z = -h): M_ref = M_seabed - F (zRef + h).
+ */
+export function transferMoment(momentSeabed, force, zRef, h) {
+  return momentSeabed - force * (zRef + h);
+}
+
+export function windForce(body, env) {
+  return windLoad(body, env).force;
 }
 
 // ---------------------------------------------------------------------------
@@ -191,6 +208,7 @@ export function computePlatform(environment, bodies, numericsIn = {}) {
   // Depth factors are separated from the phase (velocityAmplitudes), so nodes
   // fixed at the SWL limit are evaluated once rather than at every time step.
   const nodeData = (nodes, eta) => nodes.map((nd) => ({
+    arm: nd.z + env.h, // lever arm about the seabed
     wD: nd.wD,
     wA: nd.wA,
     U: velocityAmplitudes(surfaceMode && wp.theory === 'airy' ? wheelerZ(nd.z, eta, env.h) : nd.z, wp),
@@ -200,7 +218,8 @@ export function computePlatform(environment, bodies, numericsIn = {}) {
     const R = bodyRadius(b);
     const mf = env.useMacCamy && b.type === 'cylinder' ? macCamyFuchsFilter(wp.k, R, harmonics) : null;
     const staticNodes = surfaceMode ? null : nodeData(bodyNodes(b, env, 0, numerics), 0);
-    return { body: b, R, mf, staticNodes, wind: windForce(b, env) };
+    const wl = windLoad(b, env);
+    return { body: b, R, mf, staticNodes, wind: wl.force, windMoment: wl.momentSWL + wl.force * env.h };
   });
 
   const cosN = new Float64Array(harmonics);
@@ -220,7 +239,7 @@ export function computePlatform(environment, bodies, numericsIn = {}) {
       cosN[n - 1] = Math.cos(n * theta);
       accN[n - 1] = n * wp.omega * (f ? f.gain * Math.sin(n * theta + f.phase) : Math.sin(n * theta));
     }
-    let drag = 0, inertia = 0;
+    let drag = 0, inertia = 0, moment = 0;
     for (let i = 0; i < nodes.length; i++) {
       const nd = nodes[i];
       let V = nd.uc, acc = 0;
@@ -228,19 +247,23 @@ export function computePlatform(environment, bodies, numericsIn = {}) {
         V += nd.U[n] * cosN[n];
         acc += nd.U[n] * accN[n];
       }
-      drag += 0.5 * env.rho * env.Cd * nd.wD * Math.abs(V) * V;
-      inertia += env.rho * env.Cm * nd.wA * acc;
+      const fd = 0.5 * env.rho * env.Cd * nd.wD * Math.abs(V) * V;
+      const fi = env.rho * env.Cm * nd.wA * acc;
+      drag += fd;
+      inertia += fi;
+      moment += (fd + fi) * nd.arm;
     }
-    return { drag, inertia };
+    // overturning moment about the seabed point below the body (y-axis), incl. wind
+    return { drag, inertia, moment: moment + pb.windMoment };
   };
 
   const globalAt = (t) => {
-    let drag = 0, inertia = 0, wind = 0;
+    let drag = 0, inertia = 0, wind = 0, moment = 0;
     for (const pb of prepared) {
       const f = forceOnBody(pb, t);
-      drag += f.drag; inertia += f.inertia; wind += pb.wind;
+      drag += f.drag; inertia += f.inertia; wind += pb.wind; moment += f.moment;
     }
-    return { drag, inertia, wind, total: drag + inertia + wind };
+    return { drag, inertia, wind, total: drag + inertia + wind, moment };
   };
 
   // 4. sampled histories
@@ -250,14 +273,14 @@ export function computePlatform(environment, bodies, numericsIn = {}) {
   const global = [];
   for (let i = 0; i < N; i++) {
     const t = i * dt;
-    let gd = 0, gi = 0, gw = 0;
+    let gd = 0, gi = 0, gw = 0, gm = 0;
     prepared.forEach((pb, j) => {
       const f = forceOnBody(pb, t);
       const wave = f.drag + f.inertia;
-      perBody[j].push({ t, drag: f.drag, inertia: f.inertia, wave, wind: pb.wind, total: wave + pb.wind });
-      gd += f.drag; gi += f.inertia; gw += pb.wind;
+      perBody[j].push({ t, drag: f.drag, inertia: f.inertia, wave, wind: pb.wind, total: wave + pb.wind, moment: f.moment });
+      gd += f.drag; gi += f.inertia; gw += pb.wind; gm += f.moment;
     });
-    global.push({ t, drag: gd, inertia: gi, wave: gd + gi, wind: gw, total: gd + gi + gw });
+    global.push({ t, drag: gd, inertia: gi, wave: gd + gi, wind: gw, total: gd + gi + gw, moment: gm });
   }
 
   // 5. peaks refined on the continuous function, RMS over one period
@@ -289,6 +312,9 @@ export function computePlatform(environment, bodies, numericsIn = {}) {
     peakDrag: refinedPeak(global, 'drag', (t) => globalAt(t).drag),
     peakInertia: refinedPeak(global, 'inertia', (t) => globalAt(t).inertia),
     peakWind: windTotal,
+    // overturning moment about the seabed (y-axis through each body's foot; the
+    // global value sums body moments, i.e. about a seabed axis parallel to y)
+    peakMoment: refinedPeak(global, 'moment', (t) => globalAt(t).moment),
     rms: rms(global),
   };
 
@@ -308,6 +334,7 @@ export function computePlatform(environment, bodies, numericsIn = {}) {
       id: b.id, type: b.type, x: b.x, y: b.y,
       timeData: series,
       peakTotal: refinedPeak(series, 'total', totalAt),
+      peakMoment: refinedPeak(series, 'moment', (t) => forceOnBody(pb, t).moment),
       peakDrag: Math.max(...series.map((p) => Math.abs(p.drag))),
       peakInertia: Math.max(...series.map((p) => Math.abs(p.inertia))),
       rms: rms(series),

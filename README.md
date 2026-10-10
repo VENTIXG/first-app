@@ -1,10 +1,20 @@
-# Multi-Body Wave Force Calculator
+# VENTIX Offshore Studio
 
-Browser-based calculator for wave, current and wind loads on **fixed** groups
-of vertical cylinders and spheres: Morison equation with strip integration,
-Airy and Stokes 5th-order waves, the MacCamy–Fuchs diffraction correction,
-and a heave-resonance screening estimate. It is the first stage of a planned
-offshore engineering studio (see [`docs/DEVELOPMENT_ROADMAP.md`](docs/DEVELOPMENT_ROADMAP.md)).
+Offshore engineering software that runs offline in the browser or as a desktop app:
+
+- **Loads**: wave, current and wind loads, and overturning moments, on **fixed**
+  groups of vertical cylinders and spheres. Morison equation with strip
+  integration, Airy and Stokes 5th-order waves, the MacCamy–Fuchs diffraction
+  correction, and a heave-resonance screening estimate.
+- **Mooring**: quasi-static spread mooring design and analysis. Elastic
+  catenary lines with seabed contact, platform equilibrium under a steady
+  load, stiffness, and an intact plus one-line-failure safety study. It is
+  compared against MoorPy.
+- **Geometry**: an editable 3-D scene with Rhino `.3dm` import.
+
+What exists and what does not: [`FEATURE_MATRIX.md`](FEATURE_MATRIX.md). Audit
+findings and benchmarks: [`AUDIT.md`](AUDIT.md). Plan:
+[`docs/DEVELOPMENT_ROADMAP.md`](docs/DEVELOPMENT_ROADMAP.md).
 
 ## Download the desktop app
 
@@ -28,7 +38,8 @@ itself is static HTML + ES modules with no build step).
 
 ```bash
 npm install          # development tools: Playwright, Tailwind, Vite, Electron
-npm run serve        # http://localhost:8000/home.html  (npm run serve -- --port N)
+npm start            # builds the studio, then serves http://localhost:8000/home.html
+npm run serve        # serve only (the studio links are disabled until it is built)
 ```
 
 Any static file server works (`python3 -m http.server`); opening `index.html`
@@ -71,8 +82,25 @@ What it does:
 - Loads for the objects you include, computed in a Web Worker by the Phase 1
   engine; the default scene gives exactly the classic calculator's default result.
 - Projects saved and opened as JSON files, validated on load.
+- **Mooring workspace.** Generate a spread (number of lines, anchor and fairlead
+  radii, fairlead elevation, heading, material, diameter, pretension), then add,
+  remove and edit lines, anchors, fairleads and line types. The study runs in
+  the worker after every edit:
+  - equilibrium offset and yaw under a steady load (typed in, or the mean
+    environmental load from the load analysis);
+  - fairlead and anchor tensions, grounded length and safety factor per line;
+  - an intact case and one case per failed line, checked against the safety
+    factors (API RP 2SK quasi-static defaults, editable) and an optional
+    offset limit;
+  - 6×6 stiffness and a tension–offset chart.
 
-Not yet: other CAD formats, rotation/scaling, multi-selection, mesh hydrostatics,
+  In the 3-D view, lines are drawn at equilibrium, coloured by tension. An
+  impossible configuration (a line above its breaking load, the platform
+  drifting past the anchors) is reported as a failure, never as a converged
+  result. **Example** opens a three-column platform with a chain spread.
+
+Not yet: mooring dynamics (MoorDyn), multi-segment lines, clump weights and buoys,
+seabed friction, fatigue, anchor capacity, other CAD formats, rotation/scaling, multi-selection, mesh hydrostatics,
 docking layout, display units other than SI. Details and limitations:
 [`docs/PHASE2_3_FOUNDATION.md`](docs/PHASE2_3_FOUNDATION.md).
 
@@ -102,14 +130,14 @@ next to the result and listed in the exports.
 Body motion (all loads are for fixed bodies), wave–current interaction
 (T is the intrinsic period), irregular or directional seas, wave headings
 other than +x, hydrodynamic interaction between bodies, KC/Re-dependent
-coefficients, slamming, ringing, mooring and structural response. The full
+coefficients, slamming, ringing, dynamic mooring response and structural response. The full
 list of assumptions and limitations is shown in the app and in
 [`docs/ENGINEERING_AUDIT.md`](docs/ENGINEERING_AUDIT.md).
 
 ## Tests
 
 ```bash
-npm test                                   # 114 unit / verification tests (physics + studio core, node:test)
+npm test                                   # 148 unit / verification tests (physics, mooring, studio core; node:test)
 npm run typecheck                          # TypeScript check of the studio
 npx playwright install chromium            # once; or set PW_CHROMIUM_PATH=/path/to/chromium
 npm run test:e2e                           # builds the studio, then the browser tests (runs offline)
@@ -155,6 +183,7 @@ js/
   scenarios.js        Named scenarios in localStorage
 studio/               Offshore Studio (Vite + TypeScript + React)
   src/core/           Pure TypeScript: project model, undo/redo, Rhino import, fits, scene analysis
+  src/core/mooring/   Catenary, line library, system equilibrium and stiffness, safety study, schema
   src/viewport/       three.js viewport (graphics only)
   src/ui/, App.tsx    React panels
   src/workers/        Analysis and .3dm parsing workers
@@ -165,13 +194,16 @@ legacy/               Deprecated first version — see legacy/README.md
 docs/                 Architecture, audit, bug-fix plan, roadmap, validation matrix, phase reports
 tests/unit, tests/e2e Automated tests; tests/helpers holds independent reference implementations
                       and the generator of the .3dm test files
-scripts/              Static dev server and benchmark
+scripts/              Static dev server, benchmarks, MoorPy reference generator (mooring-reference.py)
+tests/fixtures/       MoorPy 1.3.0 reference values for the mooring tests
 ```
 
 Physics modules import nothing from the UI and run unchanged in Node.
 
 ## Documentation
 
+- [`AUDIT.md`](AUDIT.md), [`FEATURE_MATRIX.md`](FEATURE_MATRIX.md): rebuild audit, benchmarks A–M, feature status
+- [`docs/MILESTONE_REPORT.md`](docs/MILESTONE_REPORT.md): milestones 0–3 (moments, benchmarks, Mooring Studio)
 - [`docs/CURRENT_ARCHITECTURE.md`](docs/CURRENT_ARCHITECTURE.md): the code as found at the audit
 - [`docs/ENGINEERING_AUDIT.md`](docs/ENGINEERING_AUDIT.md): defects, impacts and limitations
 - [`docs/BUG_FIX_PLAN.md`](docs/BUG_FIX_PLAN.md): fixes and the changelog of result changes
@@ -188,6 +220,9 @@ Physics modules import nothing from the UI and run unchanged in Node.
 3. Skjelbreia & Hendrickson (1960). Fifth order gravity wave theory. Proc. 7th Coastal Eng. Conf.
 4. Fenton (1985). A fifth-order Stokes theory for steady waves. J. Waterway, Port, Coastal and Ocean Eng. 111(2).
 5. Newman (1977). Marine Hydrodynamics. MIT Press.
+6. Jonkman (2007). Dynamics modeling and loads analysis of an offshore floating wind turbine. NREL/TP-500-41958 (elastic catenary with seabed contact).
+7. Hall et al. MoorPy, NREL (BSD-3-Clause), v1.3.0: reference implementation for the mooring tests and source of the generic line-property coefficients.
+8. API RP 2SK, 3rd ed. (2005). Design and analysis of stationkeeping systems for floating structures (default quasi-static safety factors).
 6. Hedges (1995). Regions of validity of analytical wave theories. Proc. ICE Water, Maritime and Energy 112.
 7. Sarpkaya & Isaacson (1981). Mechanics of Wave Forces on Offshore Structures.
 8. Abramowitz & Stegun (1964). Handbook of Mathematical Functions, Table 9.1.

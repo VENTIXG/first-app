@@ -1,6 +1,6 @@
 {
   "name": "offshore-engineering-studio",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "Client-side offshore hydrodynamic load analysis (Morison arrays, Airy / Stokes 5th, MacCamy-Fuchs) evolving toward an offshore engineering simulation studio.",
   "type": "module",

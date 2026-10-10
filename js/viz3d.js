@@ -10,6 +10,7 @@
 
 import * as THREE from '../vendor/three-0.160.0.module.js';
 import { surfaceElevation } from './waveTheory.js';
+import { createFramePacer } from './framePacer.js';
 import { bodyRadius, bodyTopZ, sphereCenterZ } from './geometry.js';
 
 const TROUGH_COLOR = new THREE.Color(0x081d38);
@@ -48,6 +49,11 @@ export function initViz3d(container) {
   let water = null;
   let waterGeo = null;
   let planeSize = 0;
+  // Long-crested waves travel in +x, so the elevation is the same along each
+  // mesh column: evaluated once per column (not per vertex) every frame.
+  let columns = 0;
+  let columnX = new Float64Array(0); // local x of each column
+  let colEta = new Float64Array(0);
 
   function buildWater(size) {
     if (water) { scene.remove(water); waterGeo.dispose(); }
@@ -55,7 +61,11 @@ export function initViz3d(container) {
     waterGeo = new THREE.PlaneGeometry(size, size, segs, segs);
     waterGeo.rotateX(-Math.PI / 2);
     waterGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(waterGeo.attributes.position.count * 3), 3));
+    columns = segs + 1;
+    columnX = Float64Array.from({ length: columns }, (_, ix) => waterGeo.attributes.position.getX(ix));
+    colEta = new Float64Array(columns);
     water = new THREE.Mesh(waterGeo, waterMat);
+    water.position.set(centroidX, 0, centroidY);
     scene.add(water);
     planeSize = size;
   }
@@ -123,6 +133,9 @@ export function initViz3d(container) {
     const extent = Math.max(maxX - minX, maxY - minY, maxR * 2);
     const size = Math.min(800, Math.max(120, extent * 2.2));
     if (Math.abs(size - planeSize) > 1) buildWater(size);
+    // the water is centred on the platform; a vertex at local x shows eta at world x = centroidX + x
+    water.position.set(centroidX, 0, centroidY);
+    waterDirty = true;
     orbit.dist = Math.min(1200, Math.max(45, size * 0.9));
     placeCamera();
   }
@@ -152,27 +165,58 @@ export function initViz3d(container) {
   const clock = new THREE.Clock();
   let simTime = 0;
   let disposed = false;
+  let waterDirty = true;
   const tmpColor = new THREE.Color();
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-  function animate() {
-    if (disposed) return;
-    requestAnimationFrame(animate);
-    if (!reduceMotion) simTime += clock.getDelta();
-
-    if (waterGeo) {
-      const pos = waterGeo.attributes.position;
-      const col = waterGeo.attributes.color;
-      const amp = wp ? Math.max(wp.H / 2, 1e-6) : 1;
-      for (let i = 0; i < pos.count; i++) {
-        const eta = wp ? surfaceElevation(simTime, wp, centroidX + pos.getX(i)) : 0;
-        pos.setY(i, eta);
-        tmpColor.copy(TROUGH_COLOR).lerp(CREST_COLOR, Math.min(1, Math.max(0, (eta / amp) * 0.5 + 0.5)));
-        col.setXYZ(i, tmpColor.r, tmpColor.g, tmpColor.b);
+  function updateWater() {
+    const P = waterGeo.attributes.position.array;
+    const N = waterGeo.attributes.normal.array;
+    const C = waterGeo.attributes.color.array;
+    const amp = wp ? Math.max(wp.H / 2, 1e-6) : 1;
+    for (let ix = 0; ix < columns; ix++) colEta[ix] = wp ? surfaceElevation(simTime, wp, centroidX + columnX[ix]) : 0;
+    for (let ix = 0; ix < columns; ix++) {
+      // analytic normal of a surface y = eta(x): (-deta/dx, 1, 0), slope by central differences
+      const l = Math.max(0, ix - 1), r = Math.min(columns - 1, ix + 1);
+      const slope = r > l ? (colEta[r] - colEta[l]) / (columnX[r] - columnX[l]) : 0;
+      const inv = 1 / Math.hypot(slope, 1);
+      const nx = -slope * inv, ny = inv;
+      tmpColor.copy(TROUGH_COLOR).lerp(CREST_COLOR, Math.min(1, Math.max(0, (colEta[ix] / amp) * 0.5 + 0.5)));
+      for (let k = ix * 3; k < P.length; k += columns * 3) {
+        P[k + 1] = colEta[ix];
+        N[k] = nx; N[k + 1] = ny; N[k + 2] = 0;
+        C[k] = tmpColor.r; C[k + 1] = tmpColor.g; C[k + 2] = tmpColor.b;
       }
-      pos.needsUpdate = true;
-      col.needsUpdate = true;
-      waterGeo.computeVertexNormals();
+    }
+    waterGeo.attributes.position.needsUpdate = true;
+    waterGeo.attributes.normal.needsUpdate = true;
+    waterGeo.attributes.color.needsUpdate = true;
+    waterGeo.computeBoundingSphere();
+  }
+
+  // The loop runs only while the view is on screen (rAF already stops in
+  // background tabs); with reduced motion the water is static and only
+  // redrawn when something changes.
+  let onScreen = true;
+  let running = false;
+  function start() {
+    if (running || disposed) return;
+    running = true;
+    clock.getDelta();
+    requestAnimationFrame(animate);
+  }
+
+  const pacer = createFramePacer();
+
+  function animate(now) {
+    if (disposed || !onScreen) { running = false; return; }
+    requestAnimationFrame(animate);
+    const dt = clock.getDelta();
+    if (!reduceMotion && wp) { simTime += dt; waterDirty = true; }
+    if (!pacer.shouldRender(now)) return; // slow graphics: leave time for the rest of the page
+    if (waterGeo && waterDirty) {
+      updateWater();
+      waterDirty = false;
     }
 
     for (const m of meshes) {
@@ -190,7 +234,11 @@ export function initViz3d(container) {
     }
     renderer.render(scene, camera);
   }
-  animate();
+  start();
+  new IntersectionObserver((entries) => {
+    onScreen = entries.some((e) => e.isIntersecting);
+    if (onScreen) start();
+  }).observe(container);
 
   new ResizeObserver(() => {
     if (container.clientWidth === 0) return;
@@ -207,6 +255,7 @@ export function initViz3d(container) {
      */
     update(waveParams, bodies, bodyResults = []) {
       wp = waveParams;
+      waterDirty = true;
       forceData = new Map(bodyResults.map((b) => [b.id, { timeData: b.timeData, peakTotal: b.peakTotal }]));
       const shape = shapeSignature(bodies);
       if (shape !== shapeKey) { rebuildBodies(bodies); shapeKey = shape; }

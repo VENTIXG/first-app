@@ -1,4 +1,4 @@
-import { test, expect, openApp, setEnv } from './fixtures.js';
+import { test, expect, openApp, setEnv, settled } from './fixtures.js';
 
 const PAYLOAD = '<img src=x onerror="window.__xss=1">';
 
@@ -39,11 +39,13 @@ test.describe('security and scenario integrity', () => {
     await page.locator('[id="in-integrateTo"]').selectOption('surface');
     await page.fill('#scenario-name', 'storm');
     await page.click('#scenario-save');
+    await settled(page);
     const saved = await page.locator('#tile-peakTotal').textContent();
 
     await setEnv(page, 'H', 1.5);
     await page.locator('[id="in-waveTheory"]').selectOption('airy');
     await expect(page.locator('#tile-peakTotal')).not.toHaveText(saved);
+    await settled(page);
 
     await page.locator('#scenario-list').selectOption('storm');
     await page.click('#scenario-load');

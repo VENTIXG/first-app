@@ -31,6 +31,11 @@
   <script src="./vendor/jspdf-4.2.1.umd.min.js"></script>
 
   <style>
+    /* A recomputation is pending (shown only if it takes > 120 ms): the numbers
+       on screen belong to the previous inputs. */
+    body[data-computing] #tiles, body[data-computing] #chart, body[data-computing] #body-table {
+      opacity: 0.5; transition: opacity 0.15s;
+    }
     /* Chart color tokens (validated palette) — swapped by the .dark class */
     :root {
       --series-1: #2a78d6;      /* drag    */

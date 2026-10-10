@@ -383,20 +383,86 @@ function renderAssumptions(results) {
 }
 
 // ---------------------------------------------------------------------------
-// Reactive pipeline (coalesced to one computation per animation frame)
+// Reactive pipeline: coalesced to one computation per animation frame, run in
+// a module worker when available (synchronously otherwise). Each result keeps
+// the inputs it was computed from (results.request) so exports always match
+// the numbers on screen, even while a newer computation is pending.
 // ---------------------------------------------------------------------------
 
-let pending = false;
-function recalculate() {
+const internalError = (message) => ({
+  ok: false, warnings: [], infos: [],
+  errors: [{ severity: 'error', code: 'INTERNAL', message: `Internal error in the solver: ${message}` }],
+});
+
+function computeHere(environment, bodies) {
   try {
-    state.setResults(computePlatform(state.environment, state.bodies));
+    return computePlatform(environment, bodies);
   } catch (err) {
     console.error(err);
-    state.setResults({
-      ok: false, warnings: [], infos: [],
-      errors: [{ severity: 'error', code: 'INTERNAL', message: `Internal error in the solver: ${err.message}` }],
-    });
+    return internalError(err.message);
   }
+}
+
+let worker = null;
+try {
+  worker = new Worker(new URL('./compute.worker.js', import.meta.url), { type: 'module' });
+} catch {
+  worker = null; // e.g. opened from file:// — compute on the main thread instead
+}
+
+let requestId = 0;
+let busyTimer = 0;
+const waiting = new Map();
+
+function setBusy(busy) {
+  clearTimeout(busyTimer);
+  // data-pending: a computation is in flight (for tests and assistive tech);
+  // data-computing: dims the results, only for computations that are noticeably slow
+  if (busy) {
+    document.body.dataset.pending = 'true';
+    document.body.setAttribute('aria-busy', 'true');
+    busyTimer = setTimeout(() => { document.body.dataset.computing = 'true'; }, 120);
+  } else {
+    delete document.body.dataset.pending;
+    delete document.body.dataset.computing;
+    document.body.removeAttribute('aria-busy');
+  }
+}
+
+if (worker) {
+  worker.onmessage = (e) => {
+    const finish = waiting.get(e.data.id);
+    waiting.delete(e.data.id);
+    finish?.(e.data.error ? internalError(e.data.error) : e.data.results);
+  };
+  worker.onerror = (e) => {
+    // the worker could not start (old browser, blocked module worker): fall back
+    e.preventDefault?.();
+    worker.terminate();
+    worker = null;
+    const pendingFinishes = [...waiting.values()];
+    waiting.clear();
+    if (pendingFinishes.length) recalculate();
+  };
+}
+
+let pending = false; // a recalculation is already scheduled for the next frame
+
+function recalculate() {
+  const id = ++requestId;
+  const request = { environment: state.environment, bodies: state.bodies, snapshot: state.serialize() };
+  const finish = (results) => {
+    if (id !== requestId) return; // a newer request supersedes this one
+    setBusy(false);
+    state.setResults({ ...results, request });
+  };
+  if (!worker) {
+    finish(computeHere(request.environment, request.bodies));
+    return;
+  }
+  setBusy(true);
+  waiting.set(id, finish);
+  worker.postMessage({ id, environment: request.environment, bodies: request.bodies });
 }
 function scheduleRecalc() {
   if (pending) return;
@@ -509,7 +575,7 @@ function initTools() {
 
   $('#export-json').addEventListener('click', () => {
     try {
-      exportJSON(state.serialize(), state.results);
+      exportJSON(state.results.request?.snapshot ?? state.serialize(), state.results);
       notify('JSON exported.');
     } catch (err) {
       notify(`JSON export failed: ${err.message}`, 'error');
@@ -519,7 +585,9 @@ function initTools() {
   $('#export-pdf').addEventListener('click', async () => {
     if (!state.results?.ok) return;
     const { label } = currentSeries(state.results);
-    const res = await exportPDF(state.environment, state.bodies, state.results, $('#chart'), label);
+    // the inputs that produced the displayed results (a newer computation may be pending)
+    const { environment, bodies } = state.results.request ?? { environment: state.environment, bodies: state.bodies };
+    const res = await exportPDF(environment, bodies, state.results, $('#chart'), label);
     if (res.ok) notify(`PDF exported (${res.pages} page${res.pages > 1 ? 's' : ''}).`);
     else if (res.reason === 'missing-library') notify('PDF export unavailable: the bundled jsPDF library could not be loaded (vendor/jspdf-4.2.1.umd.min.js).', 'error');
     else notify(`PDF export failed: ${res.message}`, 'error');

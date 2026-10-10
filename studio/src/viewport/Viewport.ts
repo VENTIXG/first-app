@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import type { Project, SceneObject } from '../core/types.ts';
+import { createFramePacer } from '../../../js/framePacer.js';
 
 export interface ViewportCallbacks {
   onSelect(id: string | null): void;
@@ -47,6 +48,12 @@ export class Viewport {
   private down: { x: number; y: number } | null = null;
   private framed = false;
   readonly available: boolean;
+  // Render on demand: a frame is drawn only when something changed (camera,
+  // gizmo, scene, size), and paced when the graphics stack is slow.
+  private needsRender = true;
+  private frameRequested = false;
+  private disposed = false;
+  private pacer = createFramePacer();
 
   constructor(private container: HTMLElement, private cb: ViewportCallbacks) {
     this.camera.up.set(0, 0, 1);
@@ -90,11 +97,13 @@ export class Viewport {
     this.orbit = new OrbitControls(this.camera, r.domElement);
     this.orbit.enableDamping = true;
     this.orbit.target.set(30, 0, -5);
+    this.orbit.addEventListener('change', this.requestRender);
 
     this.gizmo = new TransformControls(this.camera, r.domElement);
     this.gizmo.setMode('translate');
     this.gizmo.setSpace('world');
     this.gizmo.showZ = false; // plan moves only; elevations are edited numerically
+    this.gizmo.addEventListener('change', this.requestRender);
     this.gizmo.addEventListener('dragging-changed', (e) => {
       const dragging = Boolean((e as unknown as { value: boolean }).value);
       this.dragging = dragging;
@@ -108,11 +117,32 @@ export class Viewport {
     this.resize = new ResizeObserver(() => this.fit());
     this.resize.observe(container);
     this.fit();
-    r.setAnimationLoop(() => {
-      this.orbit?.update();
-      r.render(this.scene, this.camera);
-    });
+    this.requestRender();
   }
+
+  /** Schedule a redraw on the next animation frame (coalesced). */
+  requestRender = (): void => {
+    this.needsRender = true;
+    if (this.frameRequested || this.disposed || !this.renderer) return;
+    this.frameRequested = true;
+    requestAnimationFrame(this.frame);
+  };
+
+  private frame = (now: number): void => {
+    this.frameRequested = false;
+    if (this.disposed || !this.renderer) return;
+    // damping keeps the camera moving for a while after the pointer is released
+    const moving = this.orbit?.update() ?? false;
+    if (moving) this.needsRender = true;
+    if (!this.needsRender) return;
+    if (!this.pacer.shouldRender(now)) {
+      this.requestRender(); // slow graphics: try again on a later frame
+      return;
+    }
+    this.needsRender = false;
+    this.renderer.render(this.scene, this.camera);
+    if (moving) this.requestRender();
+  };
 
   /** Bring the drawing in line with the project and the selection. */
   update(project: Project, selectedId: string | null): void {
@@ -140,6 +170,7 @@ export class Viewport {
     else if (!this.dragging) this.gizmo?.detach();
 
     this.updateEnvironmentPlanes(project.environment.h);
+    this.requestRender();
     if (!this.framed && this.entries.size) {
       this.frameAll();
       this.framed = true;
@@ -159,6 +190,7 @@ export class Viewport {
     this.camera.near = dist / 1000;
     this.camera.far = dist * 20;
     this.camera.updateProjectionMatrix();
+    this.requestRender();
   }
 
   /** Client (page) coordinates of a world point, for tests and overlays. */
@@ -194,7 +226,7 @@ export class Viewport {
   dispose(): void {
     this.resize?.disconnect();
     if (!this.renderer) return;
-    this.renderer.setAnimationLoop(null);
+    this.disposed = true;
     this.renderer.domElement.removeEventListener('pointerdown', this.onPointerDown);
     this.renderer.domElement.removeEventListener('pointerup', this.onPointerUp);
     this.gizmo?.detach();
@@ -282,6 +314,7 @@ export class Viewport {
     this.renderer.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.requestRender();
   }
 
   private commitDrag(): void {

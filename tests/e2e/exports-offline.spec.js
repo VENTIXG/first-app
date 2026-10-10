@@ -61,6 +61,35 @@ test.describe('exports', () => {
   });
 });
 
+test.describe('responsiveness', () => {
+  test('a heavy platform is computed in a background worker; the page keeps animating', async ({ page }) => {
+    const workers = [];
+    page.on('worker', (w) => workers.push(w.url()));
+    await openApp(page);
+    await page.evaluate(() => {
+      const bodies = Array.from({ length: 25 }, (_, i) => ({
+        type: 'cylinder', x: (i % 5) * 40, y: Math.floor(i / 5) * 40, diameter: 4, radius: 2, draft: 15, freeboard: 10,
+      }));
+      localStorage.setItem('wfc-scenarios', JSON.stringify({
+        heavy: { snapshot: { schemaVersion: 1, environment: { waveTheory: 'stokes5', integrateTo: 'surface' }, bodies } },
+      }));
+    });
+    await page.reload();
+    await page.locator('#scenario-list').selectOption('heavy');
+    // longest gap between animation frames while the scenario loads and computes
+    const maxGap = page.evaluate(() => new Promise((resolve) => {
+      let last = performance.now(); let max = 0; const t0 = last;
+      const tick = (t) => { max = Math.max(max, t - last); last = t; if (t - t0 < 1500) requestAnimationFrame(tick); else resolve(max); };
+      requestAnimationFrame(tick);
+    }));
+    await page.click('#scenario-load');
+    await expect(page.locator('#body-table tr')).toHaveCount(25);
+    await expect(page.locator('#toast')).toContainText('Loaded scenario');
+    expect(workers.some((u) => u.endsWith('/js/compute.worker.js'))).toBe(true);
+    expect(await maxGap).toBeLessThan(400); // computing on the page thread took ~0.5 s per edit
+  });
+});
+
 test.describe('offline / missing libraries', () => {
   test('everything works with no network: bundled 3-D view, Plotly chart and PDF; no external request', async ({ page, issues }) => {
     await openApp(page, { plotly: true });

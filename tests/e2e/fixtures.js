@@ -53,6 +53,12 @@ export async function openApp(page, opts) {
   await routeLibraries(page, opts);
   await page.goto('/index.html');
   await expect(page.locator('#tile-peakTotal')).not.toHaveText('–');
+  await settled(page);
+}
+
+/** Wait until no computation is in flight (results are computed in a worker). */
+export async function settled(page) {
+  await expect(page.locator('body:not([data-pending])')).toHaveCount(1);
 }
 
 /** Set an environment field by its stable id (attribute selector: ids differ only by case, e.g. in-H vs in-h). */

@@ -1,0 +1,77 @@
+# Desktop packaging (npm run dist). Installers are built on each operating
+# system by .github/workflows/desktop.yml; `npm run dist` builds for the
+# current one. Builds are not code-signed (see docs/DESKTOP.md for what that
+# means when installing).
+appId: io.github.ventixg.offshorestudio
+productName: Offshore Studio
+copyright: Offshore Studio contributors
+artifactName: Offshore-Studio-${version}-${os}-${arch}.${ext}
+
+directories:
+  output: release
+  buildResources: build
+
+# Only the app itself: the web pages, the bundled libraries, the built studio
+# and the Electron main process. Dependencies are bundled or vendored, so no
+# node_modules are shipped.
+files:
+  - electron/**
+  - home.html
+  - index.html
+  - standalone.html
+  - css/app.css
+  - js/**
+  - vendor/**
+  - studio/dist/**
+  - package.json
+  - "!**/*.map"
+asar: true
+electronLanguages: [en-US]
+# nothing is published or auto-updated from inside the app
+publish: null
+
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Offshore Studio
+  artifactName: Offshore-Studio-Setup-${version}-${arch}.${ext}
+portable:
+  artifactName: Offshore-Studio-Portable-${version}-${arch}.${ext}
+
+mac:
+  icon: build/icon.png
+  category: public.app-category.education
+  # ad-hoc signature: required for Apple Silicon to run the app at all; it is
+  # not a Developer ID signature, so Gatekeeper asks once (see docs/DESKTOP.md)
+  identity: "-"
+  hardenedRuntime: false
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+dmg:
+  artifactName: Offshore-Studio-${version}-mac-${arch}.${ext}
+
+linux:
+  icon: build/icon.png
+  executableName: offshore-studio
+  maintainer: Offshore Studio <VENTIXG@users.noreply.github.com>
+  syncDesktopName: true
+  category: Science
+  synopsis: Wave, current and wind loads on offshore platforms
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+deb:
+  packageCategory: science

@@ -1,6 +1,6 @@
 {
   "name": "offshore-engineering-studio",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "description": "Client-side offshore hydrodynamic load analysis (Morison arrays, Airy / Stokes 5th, MacCamy-Fuchs) evolving toward an offshore engineering simulation studio.",
   "type": "module",
@@ -18,7 +18,10 @@
     "build:studio": "vite build --config studio/vite.config.ts",
     "typecheck": "tsc -p studio/tsconfig.json",
     "bench:studio": "node scripts/bench-studio.mjs",
-    "vendor": "node scripts/vendor.mjs"
+    "vendor": "node scripts/vendor.mjs",
+    "app": "npm run build:studio && electron .",
+    "dist": "npm run build:studio && electron-builder --publish never",
+    "test:app": "playwright test -c playwright.electron.config.js"
   },
   "devDependencies": {
     "@playwright/test": "1.56.0",
@@ -26,16 +29,23 @@
     "@types/react-dom": "18.3.1",
     "@types/three": "0.160.0",
     "@vitejs/plugin-react": "4.3.4",
+    "electron": "44.4.5",
+    "electron-builder": "26.15.3",
     "jspdf": "4.2.1",
     "plotly.js-dist-min": "2.35.2",
-    "tailwindcss": "3.4.17",
-    "typescript": "5.6.3",
-    "vite": "6.4.3"
-  },
-  "dependencies": {
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "rhino3dm": "8.17.0",
-    "three": "0.160.0"
-  }
+    "tailwindcss": "3.4.17",
+    "three": "0.160.0",
+    "typescript": "5.6.3",
+    "vite": "6.4.3"
+  },
+  "main": "electron/main.cjs",
+  "productName": "Offshore Studio",
+  "author": {
+    "name": "VENTIXG"
+  },
+  "homepage": "https://github.com/VENTIXG/first-app",
+  "desktopName": "offshore-studio.desktop"
 }

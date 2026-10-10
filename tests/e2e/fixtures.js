@@ -9,7 +9,7 @@ import path from 'node:path';
 const nm = (p) => fs.readFileSync(path.join(process.cwd(), 'node_modules', p));
 const LIBS = [
   ['https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js', 'three/build/three.module.js'],
-  ['https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js', 'jspdf/dist/jspdf.umd.min.js'],
+  ['https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js', 'jspdf/dist/jspdf.umd.min.js'],
   ['https://cdn.plot.ly/plotly-2.35.2.min.js', 'plotly.js-dist-min/plotly.min.js'],
 ];
 

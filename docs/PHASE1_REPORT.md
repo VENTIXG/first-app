@@ -128,6 +128,12 @@ scenarios), CSV, PDF and the new JSON export, dark/light theme, offline operatio
   computation runs on the main thread until the Web Worker of Phase 2.
 - Display units are SI only (viscosity shown in mm²/s).
 - Plotly, three.js and jsPDF still come from CDNs without subresource integrity.
+- Dependency audit (`npm audit`, 2026-10-10): jsPDF upgraded 2.5.2 → 4.2.1 after the
+  close-out, which clears its published advisories (the app used none of the affected
+  features: AcroForms, addJS, html(), file loading, new-window output). Remaining
+  advisories are in the Tailwind 3 build chain (braces/micromatch, denial of
+  service from crafted glob patterns): build-time only, run on this repository's own
+  configuration, nothing shipped. Upgrading to Tailwind 4 is a migration, deferred.
 - Visual baselines are host-specific and are not run in CI.
 
 ## 10. Unsupported features (not implemented, and not presented as available)

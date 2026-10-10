@@ -12,7 +12,7 @@ function exactCylinderWind(env, D, he) {
     he ** (2 * b + 1) / ((2 * b + 1) * env.windRef ** (2 * b));
 }
 
-const ENV = { ...DEFAULT_ENVIRONMENT, waveTheory: 'airy', V_wind: 25, h_exp: 15 };
+const ENV = { ...DEFAULT_ENVIRONMENT, waveTheory: 'airy', V_wind: 25 };
 
 test('cylinder wind force agrees with the exact power-law integral to 1%', () => {
   const r = computePlatform(ENV, [makeBody({ diameter: 6, draft: 20 })]);
@@ -20,7 +20,7 @@ test('cylinder wind force agrees with the exact power-law integral to 1%', () =>
   assert.ok(Math.abs(r.bodies[0].windForce - ref) / ref < 1e-2);
 });
 
-test('cylinder wind force is exact (closed-form integral, per-body freeboard)', { todo: 'D-12' }, () => {
+test('cylinder wind force is exact (closed-form integral, per-body freeboard)', () => {
   const body = makeBody({ diameter: 6, draft: 20, freeboard: 12 });
   const r = computePlatform(ENV, [body]);
   const ref = exactCylinderWind(ENV, 6, 12);

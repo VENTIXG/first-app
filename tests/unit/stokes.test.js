@@ -59,6 +59,15 @@ test('deep-water limits of the S&H coefficients (B22, B33, B44, B55, C1, C2)', (
   near(c.C2, 5 / 4, 'C2');
 });
 
+test('Fenton-derived lambda^2 dispersion term reproduces the S&H C1 identically (conversion check)', () => {
+  for (const kh of [0.4, 0.8, 1.5, 3, 6]) {
+    const S = 1 / Math.cosh(2 * kh);
+    const twoQ = (2 + 7 * S * S) / (2 * (1 - S) ** 2);
+    const C1 = stokesCoefficients(kh).C1;
+    assert.ok(Math.abs(twoQ - C1) / C1 < 1e-12, `kh=${kh}: ${twoQ} vs ${C1}`);
+  }
+});
+
 test('kinematic free-surface BC residual scales as lambda^6 at all depths', () => {
   for (const kh of [1, 2, 4]) {
     const [r1, r2, r3] = residualLadder(kh);
@@ -68,7 +77,7 @@ test('kinematic free-surface BC residual scales as lambda^6 at all depths', () =
   }
 });
 
-test('dynamic (Bernoulli) free-surface BC residual scales as lambda^6 at all depths', { todo: 'D-01' }, () => {
+test('dynamic (Bernoulli) free-surface BC residual scales as lambda^6 at all depths', () => {
   for (const kh of [0.6, 1, 2, 4]) {
     const [r1, r2, r3] = residualLadder(kh);
     for (const ratio of [r1.dynamic / r2.dynamic, r2.dynamic / r3.dynamic]) {
@@ -77,7 +86,7 @@ test('dynamic (Bernoulli) free-surface BC residual scales as lambda^6 at all dep
   }
 });
 
-test('Stokes non-convergence is reported as an error, never used as a result', { todo: 'D-02' }, () => {
+test('Stokes non-convergence is reported as an error, never used as a result', () => {
   // Very steep wave in shallow water: outside the domain where S&H converges.
   const env = { ...DEFAULT_ENVIRONMENT, waveTheory: 'stokes5', H: 7.5, T: 14, h: 10 };
   const r = computePlatform(env, [makeBody({ diameter: 2, draft: 5 })]);

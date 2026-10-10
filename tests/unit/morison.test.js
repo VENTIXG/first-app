@@ -38,13 +38,13 @@ test('drag-only peak matches the closed-form I2 integral (no current)', () => {
   assert.ok(rel(r.global.peakTotal, FD) < 1e-3, `rel err ${rel(r.global.peakTotal, FD).toExponential(2)}`);
 });
 
-test('inertia and drag closed forms reproduced to 1e-6 (quadrature + peak refinement)', { todo: 'D-11' }, () => {
+test('inertia and drag closed forms reproduced to 1e-12 (Gauss–Legendre + peak refinement)', () => {
   const D = 4, d = 15;
   const { FI, FD } = closedForm(BASE, D, d);
   const rI = computePlatform({ ...BASE, Cd: 0 }, [makeBody({ diameter: D, draft: d })]);
   const rD = computePlatform({ ...BASE, Cm: 0 }, [makeBody({ diameter: D, draft: d })]);
-  assert.ok(rel(rI.global.peakTotal, FI) < 1e-6, `inertia ${rel(rI.global.peakTotal, FI).toExponential(2)}`);
-  assert.ok(rel(rD.global.peakTotal, FD) < 1e-6, `drag ${rel(rD.global.peakTotal, FD).toExponential(2)}`);
+  assert.ok(rel(rI.global.peakTotal, FI) < 1e-12, `inertia ${rel(rI.global.peakTotal, FI).toExponential(2)}`);
+  assert.ok(rel(rD.global.peakTotal, FD) < 1e-12, `drag ${rel(rD.global.peakTotal, FD).toExponential(2)}`);
 });
 
 test('drag with uniform current matches an independent quadrature reference', () => {
@@ -113,7 +113,7 @@ test('time-domain array engine (Cd = 0) equals |Q|·C_FI from the thesis closed 
   for (const [w] of TABLE6) {
     const ref = Math.abs(thesisPoint(w).Q) * thesisPoint(w).CFI;
     const r = thesisArray(w, 0);
-    assert.ok(rel(r.global.peakTotal, ref) < 1e-3, `w=${w}: ${rel(r.global.peakTotal, ref).toExponential(2)}`);
+    assert.ok(rel(r.global.peakTotal, ref) < 1e-12, `w=${w}: ${rel(r.global.peakTotal, ref).toExponential(2)}`);
   }
 });
 

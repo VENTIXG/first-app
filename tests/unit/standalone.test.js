@@ -27,7 +27,7 @@ test('Bessel J0, J1, Y0 agree with A&S Table 9.1 to 1e-7', () => {
   }
 });
 
-test('Bessel Y1 agrees with A&S Table 9.1 to 1e-7', { todo: 'D-05' }, () => {
+test('Bessel Y1 agrees with A&S Table 9.1 to 1e-7', () => {
   for (const [x, , , , y1] of BESSEL_TABLE) {
     assert.ok(Math.abs(S.bessY1(x) - y1) < 1e-7, `Y1(${x}): err ${(S.bessY1(x) - y1).toExponential(2)}`);
   }
@@ -37,7 +37,7 @@ test('MacCamy-Fuchs inertia coefficient -> 2 as ka -> 0', () => {
   assert.ok(Math.abs(S.macCamyFuchs(0.01).Cm - 2) < 1e-3);
 });
 
-test('MacCamy-Fuchs inertia force is in phase with sin(theta + delta), not cos', { todo: 'D-04' }, () => {
+test('MacCamy-Fuchs inertia force is in phase with sin(theta + delta), not cos', () => {
   const h = 60, T = 4.5, omega = (2 * Math.PI) / T;
   const k = S.solveDispersion(omega, h);
   const lam = (2 * Math.PI) / k;
@@ -57,7 +57,7 @@ test('MacCamy-Fuchs inertia force is in phase with sin(theta + delta), not cos',
   assert.ok(Math.abs(measured - delta) < 0.01, `phase ${measured.toFixed(3)} vs delta ${delta.toFixed(3)}`);
 });
 
-test('array study does not silently alter a draft >= depth', { todo: 'D-19' }, () => {
+test('array study does not silently alter a draft >= depth', () => {
   assert.ok(!/if\(ap\.T>=ap\.d\)ap\.T=ap\.d-1;/.test(standaloneSource()),
     'runArray() silently replaces the user draft with depth - 1');
 });

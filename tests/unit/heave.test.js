@@ -15,7 +15,7 @@ test('waterplane area of a cylinder is pi R^2', () => {
   assert.ok(Math.abs(r.heave.waterplaneArea - Math.PI * 9) < 1e-9);
 });
 
-test('cylinder heave added mass uses a documented one-sided-disk estimate (4/3) rho R^3', { todo: 'D-06' }, () => {
+test('cylinder heave added mass uses a documented one-sided-disk estimate (4/3) rho R^3', () => {
   const R = 3, d = 20, rho = ENV.rho;
   const r = computePlatform(ENV, [makeBody({ diameter: 2 * R, draft: d })]);
   const M = rho * Math.PI * R * R * d;
@@ -25,7 +25,7 @@ test('cylinder heave added mass uses a documented one-sided-disk estimate (4/3) 
   assert.ok(Math.abs(r.heave.Tn3 - 2 * Math.PI * Math.sqrt((M + A33) / C33)) < 1e-9);
 });
 
-test('heave components are reported separately and damping/excitation are explicitly absent', { todo: 'D-06' }, () => {
+test('heave components are reported separately and damping/excitation are explicitly absent', () => {
   const r = computePlatform(ENV, [makeBody({ diameter: 6, draft: 20 })]);
   const h = r.heave;
   for (const key of ['mass', 'addedMass', 'restoringStiffness', 'Tn3', 'Tn3NoAddedMass']) {
@@ -36,7 +36,7 @@ test('heave components are reported separately and damping/excitation are explic
   assert.match(h.status, /screening/i);
 });
 
-test('sphere hydrostatics use exact spherical-cap geometry for any draft', { todo: 'D-07' }, () => {
+test('sphere hydrostatics use exact spherical-cap geometry for any draft', () => {
   const R = 5, d = 3;
   const r = computePlatform(ENV, [makeBody({ type: 'sphere', radius: R, draft: d })]);
   assert.ok(Math.abs(r.bodies[0].submergedVolume - (Math.PI * d * d * (3 * R - d)) / 3) < 1e-9);

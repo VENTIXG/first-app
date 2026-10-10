@@ -48,7 +48,7 @@ test('save / list / load / delete round-trip through storage', () => {
   assert.deepEqual(scenarios.listScenarios(), ['case B']);
 });
 
-test('malicious or malformed body fields in a snapshot are rejected, state unchanged', { todo: 'A-02' }, () => {
+test('malicious or malformed body fields in a snapshot are rejected, state unchanged', () => {
   const s = new AppState();
   const before = JSON.stringify(s.serialize());
   for (const bad of [
@@ -61,7 +61,7 @@ test('malicious or malformed body fields in a snapshot are rejected, state uncha
   }
 });
 
-test('a failed storage write is reported to the caller, not swallowed', { todo: 'A-03' }, () => {
+test('a failed storage write is reported to the caller, not swallowed', () => {
   installStorage({ failWrites: true });
   assert.throws(() => scenarios.saveScenario('x', new AppState().serialize()));
 });

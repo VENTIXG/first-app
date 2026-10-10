@@ -512,10 +512,11 @@ function bessY0(x){if(x<8){const y=x*x;
   const p1=1+y*(-0.1098628627e-2+y*(0.2734510407e-4+y*(-0.2073370639e-5+y*0.2093887211e-6)));
   const p2=-0.1562499995e-1+y*(0.1430488765e-3+y*(-0.6911147651e-5+y*(0.7621095161e-6+y*-0.934935152e-7)));
   return Math.sqrt(0.636619772/x)*(Math.sin(xx)*p1+z*Math.cos(xx)*p2);}
-function bessY1(x){if(x<8){const y=x*x;
-  const r=x*(-4.900604943e13+y*(1.275274390e13+y*(-5.153438139e11+y*(7.349264551e9+y*(-4.237922726e7+y*8.511937935e4)))));
-  const s=2.499580570e14+y*(4.244419664e12+y*(3.733650367e10+y*(2.245904002e8+y*(1.020426050e6+y*(3.549632885e3+y)))));
-  return r/s+0.636619772*(besselJ1(x)*Math.log(x)-1/x);}
+function bessY1(x){if(x<8){ // ascending series (DLMF 10.8.1); the former rational fit erred up to 3e-4 near x=8
+  const q=x*x/4;let t=x/2,Hk=0,s=0;
+  for(let k=0;k<200;k++){const Hk1=Hk+1/(k+1);const term=(k%2?-1:1)*(-1.1544313298030657+Hk+Hk1)*t;s+=term;
+    if(k>2&&Math.abs(term)<1e-17*Math.max(1,Math.abs(s)))break;t*=q/((k+1)*(k+2));Hk=Hk1;}
+  return 0.6366197723675814*(Math.log(x/2)*besselJ1(x)-1/x)-s/Math.PI;}
   const z=8/x,y=z*z,xx=x-2.356194491;
   const p1=1+y*(0.183105e-2+y*(-0.3516396496e-4+y*(0.2457520174e-5+y*-0.240337019e-6)));
   const p2=0.04687499995+y*(-0.2002690873e-3+y*(0.8449199096e-5+y*(-0.88228987e-6+y*0.105787412e-6)));
@@ -606,7 +607,8 @@ function bodyForce(b, wv, p, t){
     if(useMCF){
       const m=macCamyFuchs(ka);
       const draftFrac=(sinhkh-Math.sinh(k*Math.max(0,p.h-b.draft)))/sinhkh;
-      Fi=(Math.PI/8)*p.rho*G*p.H*b.D*b.D*Math.tanh(kh)*m.Cm*Math.cos(phX+m.delta)*draftFrac;
+      // MacCamy–Fuchs inertia leads the Morison inertia (∝ sin(phX)) by delta
+      Fi=(Math.PI/8)*p.rho*G*p.H*b.D*b.D*Math.tanh(kh)*m.Cm*Math.sin(phX+m.delta)*draftFrac;
     }
     for(let i=0;i<NS;i++){
       const z=-(i+0.5)*dz;
@@ -1000,6 +1002,7 @@ function draw3D(ts){
   ctx.fillText(`t = ${fmt(simTime%sys.wv.T,1)} s / T = ${fmt(sys.wv.T,1)} s   λ = ${fmt(sys.wv.lam,0)} m   wave →`,10,8);
   ctx.textAlign='right';
   ctx.fillText(`z ×${fmt(vex,1)} exaggerated`,w-10,8);
+  ctx.fillText('illustrative: bodies drawn at the local surface — loads computed for fixed bodies',w-10,22);
 }
 
 function shade(hex,amt){
@@ -1039,7 +1042,15 @@ function readArrayParams(){
 }
 function runArray(){
   const ap=readArrayParams();
-  if(ap.T>=ap.d)ap.T=ap.d-1;              // draft cannot exceed depth
+  if(!(ap.T<ap.d)){                         // draft must be less than depth: report, never alter the input
+    ['a_peakF','a_peakW','a_Qmax','a_valid'].forEach(id=>{el(id).textContent='—';});
+    const t=el('arrTable');t.textContent='';
+    const td=document.createElement('td');td.style.color='var(--crit)';
+    td.textContent=`Draft T = ${ap.T} m must be smaller than the water depth d = ${ap.d} m. No results computed.`;
+    t.appendChild(document.createElement('tr')).appendChild(td);
+    const c=setupCanvas(el('arrChart'),250);c.ctx.clearRect(0,0,c.w,c.h);
+    return;
+  }
   // fine sweep for curves + coarse rows for the table
   const fine=[], rows=[];
   const wLo=Math.min(0.02,ap.Wstep);

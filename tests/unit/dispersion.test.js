@@ -38,7 +38,7 @@ test('reproduces thesis worked example (omega = 0.3 rad/s, d = 60 m -> kd = 0.81
   assert.ok(Math.abs(k * 60 - 0.81724) < 2e-4, `kd = ${(k * 60).toFixed(5)}`);
 });
 
-test('rejects non-physical inputs instead of returning garbage', { todo: 'D-16' }, () => {
+test('rejects non-physical inputs instead of returning garbage', () => {
   for (const [w, h] of [[0, 10], [-1, 10], [1, 0], [1, -5], [NaN, 10], [1, Infinity]]) {
     assert.throws(() => solveDispersion(w, h), RangeError, `omega=${w}, h=${h}`);
   }

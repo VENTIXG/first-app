@@ -49,7 +49,7 @@ test('kinematics stay finite for extreme kh (h = 5000 m, T = 2 s, kh ~ 5000)', (
   assert.ok(Number.isFinite(u) && Number.isFinite(dudt));
 });
 
-test('deep water: velocity amplitude decays monotonically and equals a w e^{kz} at every depth', { todo: 'D-10' }, () => {
+test('deep water: velocity amplitude decays monotonically and equals a w e^{kz} at every depth', () => {
   // T = 4 s in 3000 m water: 25/k ~ 99 m, so the old effective-depth cap is exercised below that.
   const wp = prepareWave('airy', 2, 4, 3000);
   let prev = Infinity;

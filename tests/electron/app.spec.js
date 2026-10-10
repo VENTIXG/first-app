@@ -90,6 +90,28 @@ test('3-D studio: Rhino import runs (WebAssembly under the CSP) and analysis mat
   await quit(app);
 });
 
+test('saved scenarios and the theme persist after the app is restarted', async () => {
+  const name = `persist-${Date.now()}`;
+  let { app, page } = await launch();
+  await page.click('#open-calculator');
+  await expect(page.locator('#tile-peakTotal')).toHaveText(/kN$/);
+  await page.fill('#scenario-name', name);
+  await page.click('#scenario-save');
+  await expect(page.locator('#toast')).toContainText(name);
+  const dark = await page.evaluate(() => document.documentElement.classList.contains('dark'));
+  await page.click('#theme-toggle');
+  await quit(app);
+
+  ({ app, page } = await launch());
+  await page.click('#open-calculator');
+  await expect(page.locator('#scenario-list option', { hasText: name })).toHaveCount(1);
+  expect(await page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(!dark);
+  await page.click('#theme-toggle'); // restore
+  await page.locator('#scenario-list').selectOption(name);
+  await page.click('#scenario-delete');
+  await quit(app);
+});
+
 test('array study runs its self-contained script', async () => {
   const { app, page, problems } = await launch();
   await page.click('#open-array');

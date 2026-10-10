@@ -13,6 +13,8 @@ async function openStudio(page) {
 }
 const project = (page) => page.evaluate(() => window.__studio.project());
 const outlinerItems = (page) => page.locator('.outliner li');
+/** Results are recomputed in a worker after every edit; wait until the panel is current. */
+const settled = (page) => expect(page.locator('.results')).toHaveAttribute('aria-busy', 'false');
 const selectInList = (page, name) => page.locator('.outliner-name', { hasText: name }).first().click();
 
 async function clearScene(page) {
@@ -144,6 +146,8 @@ test.describe('studio', () => {
     await openStudio(page);
     await page.click('#add-sphere');
     await expect(outlinerItems(page)).toHaveCount(3);
+    await expect(page.locator('#res-peak')).not.toHaveText('262.55 kN');
+    await settled(page);
     const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#save-project')]);
     const text = fs.readFileSync(await dl.path(), 'utf8');
     const saved = JSON.parse(text);
@@ -155,6 +159,7 @@ test.describe('studio', () => {
     await expect(outlinerItems(page)).toHaveCount(2);
     await page.locator('#project-file').setInputFiles({ name: 'p.osproj.json', mimeType: 'application/json', buffer: Buffer.from(text) });
     await expect(outlinerItems(page)).toHaveCount(3);
+    await settled(page);
     await expect(page.locator('#res-peak')).toHaveText(peak);
 
     const tampered = { ...saved, objects: [{ ...saved.objects[0], id: '__proto__' }] };

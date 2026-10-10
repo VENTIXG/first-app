@@ -109,6 +109,8 @@ h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: 
 .issue-error { border-color: var(--error); }
 .issue-warning { border-color: var(--warning); }
 
+/* a recomputation is pending: the numbers shown belong to the previous state */
+.results[aria-busy='true'] .tiles, .results[aria-busy='true'] .bodies { opacity: 0.5; transition: opacity 0.15s; }
 .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 10px; }
 .tiles div { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 8px; }
 .tiles dt { font-size: 11px; color: var(--muted); }

@@ -18,8 +18,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Unit and verification tests
+      - name: Unit and verification tests (physics + studio core)
         run: npm test
+      - name: Type-check the studio
+        run: npm run typecheck
+      - name: Build the studio
+        run: npm run build:studio
       - name: Static CSS is up to date
         run: |
           npm run build:css

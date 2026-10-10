@@ -88,13 +88,13 @@ export async function referenceModel({ units = 'Millimeters' } = {}) {
 }
 
 /** A file with a single capped vertical cylinder, in the given units. */
-export async function singleColumn({ units = 'Meters', diameter = 6, zBottom = -20, zTop = 15, x = 0, y = 0 } = {}) {
+export async function singleColumn({ units = 'Meters', diameter = 6, zBottom = -20, zTop = 15, x = 0, y = 0, name = 'Column' } = {}) {
   const rhino = await loadRhino();
   const doc = new rhino.File3dm();
   doc.settings().modelUnitSystem = rhino.UnitSystem[units];
   const c = new rhino.Cylinder(new rhino.Circle([x, y, zBottom], diameter / 2), zTop - zBottom);
   const a = new rhino.ObjectAttributes();
-  a.name = 'Column';
+  a.name = name;
   doc.objects().add(c.toBrep(true, true), a);
   return doc.toByteArray();
 }

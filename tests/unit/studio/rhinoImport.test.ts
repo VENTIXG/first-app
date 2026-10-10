@@ -33,7 +33,8 @@ test('reference model (mm): units, layers, recognised primitives, meshes and ski
     assert.equal(o.source.kind === 'rhino' && o.source.layer, 'Platform::Columns');
     assert.match(o.source.kind === 'rhino' ? o.source.note : '', /recognised vertical cylinder/);
   }
-  close((byName(r.objects, 'Column A').shape as CylinderShape).x, 0, 1e-9, 'Column A x');
+  assert.equal((byName(r.objects, 'Column A').shape as CylinderShape).x, 0, 'fit noise is rounded away (1 nm)');
+  assert.equal((byName(r.objects, 'Column A').shape as CylinderShape).y, 0);
   close((byName(r.objects, 'Column B').shape as CylinderShape).x, 60, 1e-9, 'Column B x (Extrusion)');
   assert.equal(byName(r.objects, 'Column B').source.kind === 'rhino' && byName(r.objects, 'Column B').source.rhinoType, 'Extrusion');
 

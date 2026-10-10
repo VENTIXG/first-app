@@ -169,7 +169,11 @@ function toMetres(m: MeshData, k: number, swl: number): MeshData {
   return { positions, indices: m.indices };
 }
 
-const round = (x: number) => Number(x.toPrecision(12));
+/** Round imported lengths to 1 nm (far below CAD tolerances) so fit noise such as 2e-16 m reads as 0. */
+const round = (x: number) => {
+  const q = Math.abs(x) < 1e6 ? Math.round(x * 1e9) / 1e9 : x;
+  return q === 0 ? 0 : Number(q.toPrecision(12));
+};
 
 export function importRhino(rhino: Rhino, bytes: Uint8Array, fileName: string, options: ImportOptions = {}): RhinoImportResult {
   const base: RhinoImportResult = {

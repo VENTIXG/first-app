@@ -6,6 +6,14 @@ Airy and Stokes 5th-order waves, the MacCamy–Fuchs diffraction correction,
 and a heave-resonance screening estimate. It is the first stage of a planned
 offshore engineering studio (see [`docs/DEVELOPMENT_ROADMAP.md`](docs/DEVELOPMENT_ROADMAP.md)).
 
+## Download the desktop app
+
+Offshore Studio is available as a desktop app for **Windows, macOS and Linux**
+that works offline: the 3-D Studio, the load calculator and the array study in
+one window. Get the installer from the latest green run of the **Desktop app**
+workflow (Actions tab → Artifacts) or from Releases. Installation notes,
+including the unsigned-app warnings, are in [`docs/DESKTOP.md`](docs/DESKTOP.md).
+
 > **Status.** The physics is verified against analytical solutions and
 > reference tables (see [`docs/VALIDATION_MATRIX.md`](docs/VALIDATION_MATRIX.md)).
 > It has **not** been validated against model tests or field measurements and
@@ -17,18 +25,17 @@ Requires Node.js 22 or later (only for the dev server, tests and CSS build; the 
 itself is static HTML + ES modules with no build step).
 
 ```bash
-npm install          # dev tools only: Playwright, Tailwind, local copies of the CDN libraries
-npm run serve        # http://localhost:8000/index.html  (npm run serve -- --port N)
+npm install          # development tools: Playwright, Tailwind, Vite, Electron
+npm run serve        # http://localhost:8000/home.html  (npm run serve -- --port N)
 ```
 
 Any static file server works (`python3 -m http.server`); opening `index.html`
 through `file://` does not, because browsers block ES modules there.
 
-Plotly (interactive chart), three.js (3-D view) and jsPDF (PDF report) load
-from CDNs at pinned versions. Without network access the physics, tables,
-CSV/JSON export and a built-in SVG chart still work; the 3-D view and PDF
-export say that they are unavailable. Styling is a prebuilt local file
-(`css/app.css`).
+Plotly (interactive chart), three.js (3-D view) and jsPDF (PDF report) are
+bundled in `vendor/` at pinned versions, so everything works offline; the app
+makes no network requests. Styling is a prebuilt local file (`css/app.css`).
+`home.html` links the three tools.
 
 `standalone.html` is the earlier self-contained version with the array
 frequency-sweep study (thesis method). It works fully offline and has
@@ -103,7 +110,10 @@ list of assumptions and limitations is shown in the app and in
 npm test                                   # 114 unit / verification tests (physics + studio core, node:test)
 npm run typecheck                          # TypeScript check of the studio
 npx playwright install chromium            # once; or set PW_CHROMIUM_PATH=/path/to/chromium
-npm run test:e2e                           # builds the studio, then 27 browser tests (runs offline)
+npm run test:e2e                           # builds the studio, then the browser tests (runs offline)
+xvfb-run -a npm run test:app               # desktop app tests (Electron); no xvfb-run on Windows/macOS
+npm run app                                # start the desktop app from source
+npm run dist                               # build installers for this system into release/
 npm run bench                              # engine timings
 npm run bench:studio                       # Rhino import timings
 npm run build:css                          # rebuild css/app.css after changing Tailwind classes
@@ -121,7 +131,8 @@ production build. CI runs on every push (`.github/workflows/ci.yml`).
 ## Project layout
 
 ```
-index.html            Dashboard shell (inputs, result tiles, 3-D view, chart, table, assumptions)
+home.html             Home page linking the three tools
+index.html            Load calculator (inputs, result tiles, 3-D view, chart, table, assumptions)
 css/                  Tailwind input and the prebuilt app.css
 js/
   main.js             UI: schema-driven inputs, body manager, safe DOM rendering, scheduling
@@ -129,6 +140,8 @@ js/
   validation.js       Input, geometry, wave and applicability checks (errors / warnings / infos)
   waveTheory.js       Dispersion, Airy and Stokes 5th kinematics, breaking checks, Wheeler stretching
   morison.js          Platform engine: strip integration, superposition, peaks, wind, KC/Re
+  compute.worker.js   Runs the engine off the page thread for the calculator
+  framePacer.js       Adaptive frame pacing for the 3-D views (slow/software graphics)
   diffraction.js      MacCamy–Fuchs coefficients and the closed-form total force
   hydrostatics.js     Heave screening (mass, added mass, stiffness, period band)
   geometry.js         Body geometry: section radius, volume, waterplane area, sphere slices
@@ -143,7 +156,9 @@ studio/               Offshore Studio (Vite + TypeScript + React)
   src/viewport/       three.js viewport (graphics only)
   src/ui/, App.tsx    React panels
   src/workers/        Analysis and .3dm parsing workers
-standalone.html       Earlier offline version with the array frequency study
+standalone.html       Array study (thesis frequency sweep), self-contained
+vendor/               Bundled Plotly, three.js and jsPDF (pinned, with licences)
+electron/             Desktop app main process; electron-builder.yml packages it
 legacy/               Deprecated first version — see legacy/README.md
 docs/                 Architecture, audit, bug-fix plan, roadmap, validation matrix, phase reports
 tests/unit, tests/e2e Automated tests; tests/helpers holds independent reference implementations
